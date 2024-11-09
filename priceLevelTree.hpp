@@ -56,4 +56,8 @@ public:
     bool isEmpty() const {
         return this->tree.empty();
     }
+
+    std::set<int> getAllLevels() {
+        return tree;
+    }
 };

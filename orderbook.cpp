@@ -4,6 +4,7 @@
 #include "order.hpp"
 #include "orderQueue.hpp"
 #include "priceLevelTree.hpp"
+#include "orderType.hpp"
 using namespace std;
 
 /**
@@ -59,11 +60,27 @@ public:
             priceLevel[price] = std::make_shared<OrderQueue>(); // Create level if not in level map.
         }
         priceLevel[price]->addOrder(order); // Add order at price level.
-        cout << "Order Added to Book (ID: " << this->id << " Type: " << order->getType() << " Size: " << order->getSize() << " Price: " << price << " Direction: " << order->getDirection() << ")\n";
+        std::cout << "Order Added to Book (ID: " << this->id << " Type: " << order->getType() << " Size: " << order->getSize() << " Price: " << price << " Direction: " << order->getDirection() << ")\n";
         orderIdMap[id] = order;
         ++this->id;
     }
-    
+
+    void visualise() {
+        std::cout << "ASKS:\n";
+        std::set<int> allAskPriceLevels  = this->askTree->getAllLevels();
+        for (std::set<int>::reverse_iterator it = allAskPriceLevels.rbegin(); it != allAskPriceLevels.rend(); ++it) {
+            std::string output(this->asks[*it]->getTotalVolume(), '#');
+            std::cout << *it << " " << output << "\n";
+        }
+        std::cout << "-\n";
+        std::set<int> allBidPriceLevels = this->bidTree->getAllLevels();
+        for (std::set<int>::reverse_iterator it = allBidPriceLevels.rbegin(); it != allBidPriceLevels.rend(); ++it) {
+            std::string output(this->bids[*it]->getTotalVolume(), '#');
+            std::cout << *it << " " << output << "\n";
+        }
+        std::cout << "BIDS:\n";
+    }
+
     void addOrderToBook(double time = 0.0, int orderType = 1, int size = 0, int price = 0, int direction = 0) {
         std::shared_ptr<Order> order = std::make_shared<Order>(time, orderType, this->id, size, price, direction);
 
@@ -72,7 +89,7 @@ public:
             executeMarketOrderAgainstBook(order);
         } else if (orderType == 2 || orderType == 3 || orderType == 4) {
             // Limit Order
-            // Stoplimit order only hits the book when (perhaps modify to add to seperate queue so its never in the main book)
+            // Stoplimit order only hits the book when (perhaps modify to add to seperate queue so it never hits the main book)
             // Fill or Kill (FOK) Limit Order
             addToBook(order);
         }
@@ -108,7 +125,7 @@ public:
         bool orderFilled = false;
 
         while ( !targetTree->isEmpty() ) { 
-            // Continue while price levels exist. CALCULATE AVERAGE EXECUTION PRICE.
+            // Continue sweeping while price levels exist. CALCULATE AVERAGE EXECUTION PRICE.
 
             bool bidCondition = isBidOrder && order->getPrice() >= this->askTree->min();
             bool askCondition = !isBidOrder && this->bidTree->max() >= order->getPrice();
@@ -121,6 +138,8 @@ public:
             int bestPrice = isBidOrder ? targetTree->max() : targetTree->min(); // Get the best price (min for ask, max for bid)
             std::shared_ptr<OrderQueue> bestQueue = targetQueue[bestPrice];
             std::shared_ptr<Order> bestOrder = bestQueue->getHighestPriorityOrder();
+
+            int executionPrice = restingOrderExecutionPrice(order, bestOrder);
 
             if (order->getSize() > bestOrder->getSize()) {
                 // Market order size is greater than the best price level order size (partial fill of market order)
@@ -136,34 +155,34 @@ public:
                 bestQueue->removeHighestPriorityOrder();
                 orderFilled = true;
             }
-
+        
             if (bestQueue->getSize() == 0) {
                 // Remove empty price levels from the target tree
                 targetTree->remove(bestPrice);
                 targetQueue.erase(bestPrice);
             }
         }
-
         if ( orderFilled ) {
-            cout << "MARKET ORDER FILLED\n";
+            std::cout << "MARKET ORDER FILLED\n";
         } else {
+            // UPDATE COUT STATEMENT AS ORDER MAY NOT EVEN HAVE BEEN FILLED AT ALL BY THIS POINT
             // Worst case no more volume in the entire book.
             // Add remaining order to book as limit order for fill when more orders hit book.
-            cout << "MARKET ORDER PARTIAL FILLED\n"; 
+            std::cout << "MARKET ORDER PARTIAL FILLED\n"; 
             order->setOrderType(2);
             addToBook(order);    
         }
     }
 
     bool handleFillOrKill(std::shared_ptr<Order> order, std::shared_ptr<OrderQueue> queue) {
-            if (order->getType() == 4 && queue->getTotalVolume() < order->getSize()) {
-                // Order is bigger than total volume at best price level on other side.
-                int orderId = order->getOrderID();
-                queue->removeHighestPriorityOrder();
-                cout << "FOK Order: " << orderId << " Cancelled, Reason: Insufficient Volume\n";
-                return true;
-            }
-            return false;
+        if (order->getType() == 4 && queue->getTotalVolume() < order->getSize()) {
+            // Order is bigger than total volume at best price level on other side.
+            int orderId = order->getOrderID();
+            queue->removeHighestPriorityOrder();
+           std::cout << "FOK Order: " << orderId << " Cancelled, Reason: Insufficient Volume\n";
+            return true;
+        }
+        return false;
     }
 
     int restingOrderExecutionPrice(std::shared_ptr<Order> bidOrder, std::shared_ptr<Order> askOrder) {
@@ -189,6 +208,7 @@ public:
             std::shared_ptr<Order> askOrder = askQueue->getHighestPriorityOrder();
 
             if (handleFillOrKill(bidOrder, askQueue) || handleFillOrKill(askOrder, bidQueue)) {
+                removeEmptyPriceLevels(highestBid, lowestAsk);
                 continue;
             }
 
@@ -201,35 +221,49 @@ public:
                 // Both Bid and Ask match in size and can be removed.
                 bidQueue->removeHighestPriorityOrder();
                 askQueue->removeHighestPriorityOrder();
-                cout << "Bid Order: " << bidOrderId << " matched with Ask Order: " << askOrderId << " at Price: " << executionPrice << "\n";
+                std::cout << "Bid Order: " << bidOrderId << " matched with Ask Order: " << askOrderId << " at Price: " << executionPrice << "\n";
             } else if (bidOrder->getSize() > askOrder->getSize()) {
                 // Ask filled fully, Bid partial fill.
                 bidOrder->partialFill(askOrder->getSize());
                 askQueue->removeHighestPriorityOrder(); 
-                cout << "Bid Order Partial Fill: " << bidOrderId << " matched with Ask Order: " << askOrderId << " at Price: " << executionPrice << "\n";
+                std::cout << "Bid Order Partial Fill: " << bidOrderId << " matched with Ask Order: " << askOrderId << " at Price: " << executionPrice << "\n";
             } else {
                 // Bid filled fully, Ask partial fill.
                 askOrder->partialFill(bidOrder->getSize());
                 bidQueue->removeHighestPriorityOrder();
-                cout << "Bid Order: " << bidOrderId << " matched with Ask Order Partial Fill: " << askOrderId << " at Price: " << executionPrice << "\n";
+                std::cout << "Bid Order: " << bidOrderId << " matched with Ask Order Partial Fill: " << askOrderId << " at Price: " << executionPrice << "\n";
             }
             removeEmptyPriceLevels(highestBid, lowestAsk);
         }
+        std::cout << "* Finished Matching *" << "\n";
     }
 };
 
 int main() {
     std::unique_ptr<Orderbook> book = std::make_unique<Orderbook>();
 
+    //book->addOrderToBook(123.2, ORDER_LIMIT, 7, 210, -1);
+    //book->addOrderToBook(123.3, ORDER_LIMIT, 6, 210, -1);
+    //book->addOrderToBook(123.4, ORDER_LIMIT, 5, 210, 1);
+    //book->addOrderToBook(123.5, ORDER_LIMIT, 4, 210, -1);
+
+
+    book->addOrderToBook(123.2, ORDER_LIMIT, 1, 215, 1);
+    book->addOrderToBook(123.3, ORDER_LIMIT, 2, 214, 1);
+    book->addOrderToBook(123.4, ORDER_LIMIT, 4, 213, 1);
+    book->addOrderToBook(123.5, ORDER_LIMIT, 6, 212, 1);
+
+    book->addOrderToBook(123.2, ORDER_LIMIT, 1, 214, -1);
+    book->addOrderToBook(123.3, ORDER_LIMIT, 3, 215, -1);
+    book->addOrderToBook(123.4, ORDER_LIMIT, 7, 216, -11);
+    book->addOrderToBook(123.5, ORDER_LIMIT, 9, 217, -1);
+
+
+    book->visualise();
+    //book->addOrderToBook(123.6, ORDER_MARKET, 22, 214, 1);
+    //book->addOrderToBook(123.7, ORDER_FILL_OR_KILL, 9999, 214, -1);
     
-    book->addOrderToBook(123.2, 2, 7, 210, -1);
-    book->addOrderToBook(123.3, 2, 6, 210, -1);
-    book->addOrderToBook(123.3, 2, 5, 210, 1);
-    book->addOrderToBook(123.3, 2, 4, 210, -1);
-    book->addOrderToBook(123.3, 1, 22, 214, 1);
-    
-    book->matchOrders();
-    cout << "* Finished Matching *" << "\n";
+    //book->matchOrders();
 
     return 0;
 }
