@@ -57,6 +57,10 @@ public:
         return this->tree.empty();
     }
 
+    int getDepth() {
+        return this->tree.size();
+    }
+
     std::set<int> getAllLevels() {
         return tree;
     }

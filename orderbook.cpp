@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <iostream>
 #include <unordered_map>
+#include <vector>
 #include "order.hpp"
 #include "orderQueue.hpp"
 #include "priceLevelTree.hpp"
@@ -66,24 +67,32 @@ public:
     }
 
     void visualise() {
-        std::cout << "ASKS:\n";
-        std::set<int> allAskPriceLevels  = this->askTree->getAllLevels();
+        std::cout << "ASKS:\n----------------------\n";
+        int cumulativeVolume;
+        std::set<int> allAskPriceLevels = this->askTree->getAllLevels();
+        cumulativeVolume = 0;
         for (std::set<int>::reverse_iterator it = allAskPriceLevels.rbegin(); it != allAskPriceLevels.rend(); ++it) {
-            std::string output(this->asks[*it]->getTotalVolume(), '#');
+            cumulativeVolume += this->asks[*it]->getTotalVolume();
+        }
+        for (std::set<int>::reverse_iterator it = allAskPriceLevels.rbegin(); it != allAskPriceLevels.rend(); ++it) {
+            int levelVolume = this->asks[*it]->getTotalVolume();
+            std::string output(cumulativeVolume, '#');
             std::cout << *it << " " << output << "\n";
+            cumulativeVolume -= levelVolume;
         }
         std::cout << "-\n";
         std::set<int> allBidPriceLevels = this->bidTree->getAllLevels();
+        cumulativeVolume = 0;
         for (std::set<int>::reverse_iterator it = allBidPriceLevels.rbegin(); it != allBidPriceLevels.rend(); ++it) {
-            std::string output(this->bids[*it]->getTotalVolume(), '#');
-            std::cout << *it << " " << output << "\n";
+            cumulativeVolume += this->bids[*it]->getTotalVolume();
+            std::string output(cumulativeVolume, '#');
+            std::cout << *it << " "  << output << "\n";
         }
-        std::cout << "BIDS:\n";
+        std::cout << "----------------------\nBIDS:\n";
     }
 
     void addOrderToBook(double time = 0.0, int orderType = 1, int size = 0, int price = 0, int direction = 0) {
         std::shared_ptr<Order> order = std::make_shared<Order>(time, orderType, this->id, size, price, direction);
-
         if (orderType == 1) {
             // market order immediately executed against the best available price in the opposite side of the order book (bids for sell orders, asks for buy orders).
             executeMarketOrderAgainstBook(order);
@@ -174,16 +183,11 @@ public:
         }
     }
 
-    bool handleFillOrKill(std::shared_ptr<Order> order, std::shared_ptr<OrderQueue> queue) {
+    bool handleFillOrKill(std::shared_ptr<OrderQueue> orderQueue, std::shared_ptr<Order> order, std::shared_ptr<OrderQueue> queue) {
         if (order->getType() == 4 && queue->getTotalVolume() < order->getSize()) {
             // Order is bigger than total volume at best price level on other side.
-            int orderId = order->getOrderID();
-            if (order->getDirection() == 1) {
-                this->bids[order->getPrice()]->removeHighestPriorityOrder();
-            } else {
-                this->asks[order->getPrice()]->removeHighestPriorityOrder();
-            }
-           std::cout << "FOK Order: " << orderId << " Cancelled, Reason: Insufficient Volume\n";
+            orderQueue->removeHighestPriorityOrder();
+            std::cout << "FOK Order: " << order->getOrderID() << " Cancelled, Reason: Insufficient Volume\n";
             return true;
         }
         return false;
@@ -200,8 +204,7 @@ public:
     }
 
     void matchOrders() {
-        while (canMatchOrders()) {
-
+        while (canMatchOrders()) {            
             int highestBid = this->bidTree->max();
             int lowestAsk = this->askTree->min();
 
@@ -211,7 +214,7 @@ public:
             std::shared_ptr<Order> bidOrder = bidQueue->getHighestPriorityOrder();
             std::shared_ptr<Order> askOrder = askQueue->getHighestPriorityOrder();
 
-            if (handleFillOrKill(bidOrder, askQueue) || handleFillOrKill(askOrder, bidQueue)) {
+            if (handleFillOrKill(bidQueue, bidOrder, askQueue) || handleFillOrKill(askQueue, askOrder, bidQueue)) {
                 removeEmptyPriceLevels(highestBid, lowestAsk);
                 continue;
             }
@@ -249,25 +252,26 @@ int main() {
     book->addOrderToBook(123.2, ORDER_LIMIT, 7, 210, -1);
     book->addOrderToBook(123.3, ORDER_LIMIT, 6, 210, -1);
     book->addOrderToBook(123.4, ORDER_LIMIT, 5, 210, 1);
-    book->addOrderToBook(123.5, ORDER_LIMIT, 4, 210, -1);
+    book->addOrderToBook(123.5, ORDER_LIMIT, 1, 210, -1);
     book->addOrderToBook(123.6, ORDER_MARKET, 22, 214, 1);
     book->addOrderToBook(123.7, ORDER_FILL_OR_KILL, 20, 214, -1);
-    //book->matchOrders();
-
+    book->addOrderToBook(123.5, ORDER_LIMIT, 3, 210, -1);
+    book->addOrderToBook(123.6, ORDER_MARKET, 22, 214, 1);
+    book->addOrderToBook(123.7, ORDER_FILL_OR_KILL, 20, 214, -1);
+    book->addOrderToBook(123.6, ORDER_LIMIT, 22, 214, 1);
+    book->addOrderToBook(123.7, ORDER_LIMIT, 20, 214, -1);
     book->addOrderToBook(123.2, ORDER_LIMIT, 1, 215, 1);
     book->addOrderToBook(123.3, ORDER_LIMIT, 2, 214, 1);
     book->addOrderToBook(123.4, ORDER_LIMIT, 4, 213, 1);
     book->addOrderToBook(123.5, ORDER_LIMIT, 6, 212, 1);
-
     book->addOrderToBook(123.2, ORDER_LIMIT, 1, 214, -1);
     book->addOrderToBook(123.3, ORDER_LIMIT, 3, 215, -1);
-    book->addOrderToBook(123.4, ORDER_LIMIT, 7, 216, -11);
+    book->addOrderToBook(123.4, ORDER_LIMIT, 7, 216, -1);
     book->addOrderToBook(123.5, ORDER_LIMIT, 9, 217, -1);
-    book->matchOrders();
+  
 
+    book->matchOrders();
     book->visualise();
-    
-    //book->matchOrders();
 
     return 0;
 }

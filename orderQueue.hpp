@@ -45,7 +45,7 @@ private:
     int totalVolume;
 
     void setHighestPriorityOrder(std::shared_ptr<Order> order) {
-        this->head->setNext(order); // set dummy head next to npho.
+        this->head->setNext(order); // Set dummy head's next to the new highest priority order
     }
 
     std::shared_ptr<Order> getLowestPriorityOrder() {
@@ -53,48 +53,61 @@ private:
     }
 
 public:
-    OrderQueue() : head(std::make_shared<Order>()), tail(head), size(0) {}
+    OrderQueue() : head(std::make_shared<Order>()), tail(head), size(0), totalVolume(0) {}
 
     void addOrder(std::shared_ptr<Order> order) {
-        order->setPrev(this->tail); // new order prev is current tail.
-        this->tail->setNext(order); // current tail next is new order.
-        this->tail = order; // set tail to the new order.
+        if (this->tail == this->head) {
+            this->head->setNext(order);
+            order->setPrev(this->head);
+        } else {
+            order->setPrev(this->tail);
+            this->tail->setNext(order);
+        }
+        this->tail = order;
         ++this->size;
         this->totalVolume += order->getSize();
     }
 
-    int getTotalVolume() {
+    int getTotalVolume() const {
         return this->totalVolume;
     }
 
-    int getSize() {
+    int getSize() const {
         return this->size;
     }
 
-    std::shared_ptr<Order> getHighestPriorityOrder() {
+    std::shared_ptr<Order> getHighestPriorityOrder() const {
         return this->head->getNext();
     }
 
     std::shared_ptr<Order> removeHighestPriorityOrder() {
         std::shared_ptr<Order> hpo = getHighestPriorityOrder();
-        if (!hpo) {    
-            cout << "No Orders In Queue\n"; // no orders in queue.
+        if (!hpo) {
+            std::cout << "No Orders In Queue\n";
             return nullptr;
-        }   
-        std::shared_ptr<Order> nhpo = hpo->getNext(); // get next hpo afte curr hpo.
-        if (nhpo) {
-            nhpo->setPrev(this->head); // set its prev to the dummy head if not nullptr.
         }
-        setHighestPriorityOrder(nhpo); 
+
+        std::shared_ptr<Order> nhpo = hpo->getNext();
+        if (nhpo) {
+            nhpo->setPrev(this->head);
+        } else {
+            this->tail = this->head;
+        }
+
+        setHighestPriorityOrder(nhpo);
         --this->size;
         this->totalVolume -= hpo->getSize();
+
+        hpo->setNext(nullptr);
+        hpo->setPrev(nullptr);
+
         return hpo;
     }
 
-    void printAllOrders() {
+    void printAllOrders() const {
         std::shared_ptr<Order> temp = this->head->getNext();
         while (temp) {
-            cout << "Order ID: " << temp->getOrderID() << "\n";
+            std::cout << "Order ID: " << temp->getOrderID() << "\n";
             temp = temp->getNext();
         }
     }
