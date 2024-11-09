@@ -178,7 +178,11 @@ public:
         if (order->getType() == 4 && queue->getTotalVolume() < order->getSize()) {
             // Order is bigger than total volume at best price level on other side.
             int orderId = order->getOrderID();
-            queue->removeHighestPriorityOrder();
+            if (order->getDirection() == 1) {
+                this->bids[order->getPrice()]->removeHighestPriorityOrder();
+            } else {
+                this->asks[order->getPrice()]->removeHighestPriorityOrder();
+            }
            std::cout << "FOK Order: " << orderId << " Cancelled, Reason: Insufficient Volume\n";
             return true;
         }
@@ -242,11 +246,13 @@ public:
 int main() {
     std::unique_ptr<Orderbook> book = std::make_unique<Orderbook>();
 
-    //book->addOrderToBook(123.2, ORDER_LIMIT, 7, 210, -1);
-    //book->addOrderToBook(123.3, ORDER_LIMIT, 6, 210, -1);
-    //book->addOrderToBook(123.4, ORDER_LIMIT, 5, 210, 1);
-    //book->addOrderToBook(123.5, ORDER_LIMIT, 4, 210, -1);
-
+    book->addOrderToBook(123.2, ORDER_LIMIT, 7, 210, -1);
+    book->addOrderToBook(123.3, ORDER_LIMIT, 6, 210, -1);
+    book->addOrderToBook(123.4, ORDER_LIMIT, 5, 210, 1);
+    book->addOrderToBook(123.5, ORDER_LIMIT, 4, 210, -1);
+    book->addOrderToBook(123.6, ORDER_MARKET, 22, 214, 1);
+    book->addOrderToBook(123.7, ORDER_FILL_OR_KILL, 20, 214, -1);
+    //book->matchOrders();
 
     book->addOrderToBook(123.2, ORDER_LIMIT, 1, 215, 1);
     book->addOrderToBook(123.3, ORDER_LIMIT, 2, 214, 1);
@@ -257,11 +263,9 @@ int main() {
     book->addOrderToBook(123.3, ORDER_LIMIT, 3, 215, -1);
     book->addOrderToBook(123.4, ORDER_LIMIT, 7, 216, -11);
     book->addOrderToBook(123.5, ORDER_LIMIT, 9, 217, -1);
-
+    book->matchOrders();
 
     book->visualise();
-    //book->addOrderToBook(123.6, ORDER_MARKET, 22, 214, 1);
-    //book->addOrderToBook(123.7, ORDER_FILL_OR_KILL, 9999, 214, -1);
     
     //book->matchOrders();
 
