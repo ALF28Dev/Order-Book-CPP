@@ -39,65 +39,73 @@ using namespace std;
  */
 class OrderQueue final {
 private:
-    std::shared_ptr<Order> head;
-    std::shared_ptr<Order> tail;
+    Order* dummyHead;
+    Order* tail;
     int size;
-    int totalVolume;
+    int* totalVolume;
 
-    void setHighestPriorityOrder(std::shared_ptr<Order> order) {
-        this->head->setNext(order); // Set dummy head's next to the new highest priority order
-    }
-
-    std::shared_ptr<Order> getLowestPriorityOrder() {
+    Order* getLowestPriorityOrder() {
         return this->tail;
     }
 
 public:
-    OrderQueue() : head(std::make_shared<Order>()), tail(head), size(0), totalVolume(0) {}
+    OrderQueue() : dummyHead(new Order()), tail(dummyHead), size(0), totalVolume(new int(0)) {}
 
-    void addOrder(std::shared_ptr<Order> order) {
-        if (this->tail == this->head) {
-            this->head->setNext(order);
-            order->setPrev(this->head);
-        } else {
-            order->setPrev(this->tail);
-            this->tail->setNext(order);
+    ~OrderQueue() {
+        delete dummyHead;       // Clean up dummy head
+        delete totalVolume; // Clean up dynamically allocated totalVolume
+    }
+
+    void addOrder(Order* order) {
+        if (this->tail == this->dummyHead) { // If the list is empty
+            this->dummyHead->setNext(order);  // Dummy head's next points to the new order
+            order->setPrev(this->dummyHead);  // New order's prev is the dummy head
+        } else {                         // If the list has other orders
+            order->setPrev(this->tail);  // New order's prev is current tail
+            this->tail->setNext(order);  // Current tail's next is the new order
         }
-        this->tail = order;
+        this->tail = order;              // Update tail to the new order
         ++this->size;
-        this->totalVolume += order->getSize();
+        *totalVolume += order->getSize();
     }
 
     int getTotalVolume() const {
-        return this->totalVolume;
+        return *totalVolume;
     }
 
     int getSize() const {
         return this->size;
     }
 
-    std::shared_ptr<Order> getHighestPriorityOrder() const {
-        return this->head->getNext();
+    void partialFill(Order* order, int size) {
+        order->partialFill(size);
+        *totalVolume -= size;
     }
 
-    std::shared_ptr<Order> removeHighestPriorityOrder() {
-        std::shared_ptr<Order> hpo = getHighestPriorityOrder();
+    Order* getHighestPriorityOrder() const {
+        return this->dummyHead->getNext();
+    }
+
+    Order* removeHighestPriorityOrder() {
+        Order* hpo = getHighestPriorityOrder();
         if (!hpo) {
             std::cout << "No Orders In Queue\n";
             return nullptr;
         }
 
-        std::shared_ptr<Order> nhpo = hpo->getNext();
+        Order* nhpo = hpo->getNext(); // Get next highest priority order after current HPO
         if (nhpo) {
-            nhpo->setPrev(this->head);
+            nhpo->setPrev(this->dummyHead); // Set its prev to the dummy head if not nullptr
         } else {
-            this->tail = this->head;
+            this->dummyHead->setNext(nullptr);
+            this->tail = this->dummyHead;   // Reset tail to dummy head if no more orders
         }
 
-        setHighestPriorityOrder(nhpo);
+        this->dummyHead->setNext(nhpo);
         --this->size;
-        this->totalVolume -= hpo->getSize();
+        *totalVolume -= hpo->getSize();
 
+        // Disconnect hpo from the list
         hpo->setNext(nullptr);
         hpo->setPrev(nullptr);
 
@@ -105,7 +113,8 @@ public:
     }
 
     void printAllOrders() const {
-        std::shared_ptr<Order> temp = this->head->getNext();
+        Order* temp = this->dummyHead->getNext();
+        std::cout << "CALLING ALL ORDERS FUNC\n";
         while (temp) {
             std::cout << "Order ID: " << temp->getOrderID() << "\n";
             temp = temp->getNext();

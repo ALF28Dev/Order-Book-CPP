@@ -48,8 +48,8 @@ private:
     int price;
     int direction;
     int type;
-    std::shared_ptr<Order> next;
-    std::shared_ptr<Order> prev;
+    Order* next;
+    Order* prev;
 
 public:
     Order(double time = 0.0, int order = 1, int id = 0, int size = 0, int price = 0, int direction = 0)
@@ -60,11 +60,11 @@ public:
         this->size -= size;
     }
 
-    void setNext(std::shared_ptr<Order> next) {
+    void setNext(Order* next) {
         this->next = next;
     }
 
-    void setPrev(std::shared_ptr<Order> prev) {
+    void setPrev(Order* prev) {
         this->prev = prev;
     }
 
@@ -92,11 +92,11 @@ public:
         return this->type;
     }
     
-    std::shared_ptr<Order> getNext() {
+    Order* getNext() {
         return this->next;
     }
 
-    std::shared_ptr<Order> getPrev() {
+    Order* getPrev() {
         return this->prev;
     }
 

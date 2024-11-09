@@ -61,7 +61,7 @@ public:
         return this->tree.size();
     }
 
-    std::set<int> getAllLevels() {
-        return tree;
+    std::set<int>* getAllLevels() {
+        return &this->tree;
     }
 };
