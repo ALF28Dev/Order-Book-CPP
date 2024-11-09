@@ -52,39 +52,7 @@ private:
 public:
     Orderbook() : bidTree(std::make_unique<PriceLevelTree>()), askTree(std::make_unique<PriceLevelTree>()), id(1) {}
 
-    std::unordered_map<int, std::shared_ptr<OrderQueue>>& getPriceLevel(std::shared_ptr<Order> order) {
-        int price = order->getPrice();
-        if (order->getDirection() == 1) {
-            this->bidTree->insert(price);
-            return bids; // return bids price level.
-        }
-        this->askTree->insert(price);
-        return asks; // return asks price level;
-    }
-
-
-
-    void addOrderToBook(double time = 0.0, int orderType = 1, int size = 0, int price = 0, int direction = 0) {
-        std::shared_ptr<Order> order = std::make_shared<Order>(time, orderType, this->id, size, price, direction);
-
-        if (orderType == 1) {
-            // market order immediately executed against the best available price in the opposite side of the order book (bids for sell orders, asks for buy orders).
-            executeMarketOrderAgainstBook(order);
-        } else if (orderType == 2) {
-            // limit order added to the book immediately at the specified price.
-            addOrderToBook(order);
-        } 
-        /*else if (orderType == 3) {
-            // stop order added to the book when price level reached (execute like market order when price level hit).
-        } else if (orderType == 4) {
-            // stop limit order which gets added to book at specified price when target price hit.
-        } else if (orderType == 5) {
-            // fill or kill market order, use current price level to determine if adequate volume is available to fill order or cancel.
-        }*/
-        
-    }
-
-    void addOrderToBook(std::shared_ptr<Order> order) {
+    void addToBook(std::shared_ptr<Order> order) {
         int price = order->getPrice();
         std::unordered_map<int, std::shared_ptr<OrderQueue>>& priceLevel = getPriceLevel(order);
         if (!priceLevel.count(price)){
@@ -95,11 +63,29 @@ public:
         orderIdMap[id] = order;
         ++this->id;
     }
+    
+    void addOrderToBook(double time = 0.0, int orderType = 1, int size = 0, int price = 0, int direction = 0) {
+        std::shared_ptr<Order> order = std::make_shared<Order>(time, orderType, this->id, size, price, direction);
 
+        if (orderType == 1) {
+            // market order immediately executed against the best available price in the opposite side of the order book (bids for sell orders, asks for buy orders).
+            executeMarketOrderAgainstBook(order);
+        } else if (orderType == 2 || orderType == 3 || orderType == 4) {
+            // Limit Order
+            // Stoplimit order only hits the book when (perhaps modify to add to seperate queue so its never in the main book)
+            // Fill or Kill (FOK) Limit Order
+            addToBook(order);
+        }
+    }
 
-    bool canMatchOrders() {
-        // check price levels containing orders exist in the bid and ask tree and ensure the max bid is greater than the min ask.
-        return (!this->bidTree->isEmpty() && !this->askTree->isEmpty() && this->bidTree->max() >= this->askTree->min());
+    std::unordered_map<int, std::shared_ptr<OrderQueue>>& getPriceLevel(std::shared_ptr<Order> order) {
+        int price = order->getPrice();
+        if (order->getDirection() == 1) {
+            this->bidTree->insert(price);
+            return bids; // return bids price level.
+        }
+        this->askTree->insert(price);
+        return asks; // return asks price level;
     }
 
     void removeEmptyPriceLevels(int highestBid, int lowestAsk) {
@@ -110,15 +96,6 @@ public:
         if (!this->asks[lowestAsk]->getSize()) {
             this->askTree->remove(lowestAsk);
         }
-    }
-
-    void updateOrderSize(int id, int size) {
-        this->orderIdMap[id]->setSize(size);
-    }
-
-    int restingOrderExecutionPrice(std::shared_ptr<Order> bidOrder, std::shared_ptr<Order> askOrder) {
-        // Get the execution price for the order which was first in the book.
-        return (bidOrder->getOrderID() < askOrder->getOrderID()) ? bidOrder->getPrice() : askOrder->getPrice();
     }
 
     void executeMarketOrderAgainstBook(std::shared_ptr<Order> order) {
@@ -174,8 +151,29 @@ public:
             // Add remaining order to book as limit order for fill when more orders hit book.
             cout << "MARKET ORDER PARTIAL FILLED\n"; 
             order->setOrderType(2);
-            addOrderToBook(order);    
+            addToBook(order);    
         }
+    }
+
+    bool handleFillOrKill(std::shared_ptr<Order> order, std::shared_ptr<OrderQueue> queue) {
+            if (order->getType() == 4 && queue->getTotalVolume() < order->getSize()) {
+                // Order is bigger than total volume at best price level on other side.
+                int orderId = order->getOrderID();
+                queue->removeHighestPriorityOrder();
+                cout << "FOK Order: " << orderId << " Cancelled, Reason: Insufficient Volume\n";
+                return true;
+            }
+            return false;
+    }
+
+    int restingOrderExecutionPrice(std::shared_ptr<Order> bidOrder, std::shared_ptr<Order> askOrder) {
+        // Get the execution price for the order which was first in the book.
+        return (bidOrder->getOrderID() < askOrder->getOrderID()) ? bidOrder->getPrice() : askOrder->getPrice();
+    }
+
+    bool canMatchOrders() {
+        // check price levels containing orders exist in the bid and ask tree and ensure the max bid is greater than the min ask.
+        return (!this->bidTree->isEmpty() && !this->askTree->isEmpty() && this->bidTree->max() >= this->askTree->min());
     }
 
     void matchOrders() {
@@ -184,17 +182,15 @@ public:
             int highestBid = this->bidTree->max();
             int lowestAsk = this->askTree->min();
 
-            // this section needs to be updated to store stop erders also get considered.
-            // by also looking through the stop orders at this level to see whats the highest priority.
-            
-
-            // modify four lines below to get the highest priority order in the system
-            // currently it gets limit orders as market orders immediately get matched best price
-            // must get highest priority order out of all limit orders and stop orders etc. 
             std::shared_ptr<OrderQueue> bidQueue = this->bids[highestBid];
-            std::shared_ptr<OrderQueue> askQueue = this->asks[lowestAsk];    
+            std::shared_ptr<OrderQueue> askQueue = this->asks[lowestAsk];
+
             std::shared_ptr<Order> bidOrder = bidQueue->getHighestPriorityOrder();
             std::shared_ptr<Order> askOrder = askQueue->getHighestPriorityOrder();
+
+            if (handleFillOrKill(bidOrder, askQueue) || handleFillOrKill(askOrder, bidQueue)) {
+                continue;
+            }
 
             int bidOrderId = bidOrder->getOrderID();
             int askOrderId = askOrder->getOrderID();
