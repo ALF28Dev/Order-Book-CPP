@@ -2,10 +2,11 @@
 #include <iostream>
 #include <unordered_map>
 #include <vector>
-#include "order.hpp"
+#include "limitOrder.hpp"
 #include "orderQueue.hpp"
 #include "priceLevelTree.hpp"
 #include "orderType.hpp"
+#include "orderSide.hpp"
 using namespace std;
 
 /**
@@ -92,12 +93,13 @@ public:
         std::cout << "----------------------\nBIDS:\n";
     }
 
-    void addOrderToBook(double time = 0.0, int orderType = 1, int size = 0, int price = 0, int direction = 0) {
-        Order* order = new Order(time, orderType, this->id, size, price, direction);
-        if (orderType == 1) {
+    void addOrderToBook(double time = 0.0, int orderType = 1, int size = 0, int price = 0, int direction = 0, int limitPrice = 0) {
+        if (orderType == ORDER_MARKET) {
+            Order* order = new Order(time, orderType, this->id, size, price, direction);
             // market order immediately executed against the best available price in the opposite side of the order book (bids for sell orders, asks for buy orders).
             executeMarketOrderAgainstBook(order);
-        } else if (orderType == 2 || orderType == 3 || orderType == 4) {
+        } else if (orderType == ORDER_LIMIT || orderType == ORDER_STOP_LIMIT || orderType == ORDER_FILL_OR_KILL) {
+            limitOrder* order = new limitOrder(time, orderType, this->id, size, price, direction, limitPrice);
             // Limit Order
             // Stoplimit order only hits the book when (perhaps modify to add to seperate queue so it never hits the main book)
             // Fill or Kill (FOK) Limit Order
@@ -107,7 +109,7 @@ public:
 
     std::unordered_map<int, OrderQueue*>& getPriceLevel(Order* order) {
         int price = order->getPrice();
-        if (order->getDirection() == 1) {
+        if (order->getDirection() == ORDER_LONG) {
             this->bidTree->insert(price);
             return bids; // return bids price level.
         }
@@ -115,7 +117,9 @@ public:
         return asks; // return asks price level;
     }
 
-    void removeEmptyPriceLevels(int highestBid, int lowestAsk) {
+    void removeEmptyPriceLevels() {
+        int highestBid = this->bidTree->max();
+        int lowestAsk = this->askTree->min();
         // remove price level from tree as no orders exist at that level
         if (!this->bids[highestBid]->getSize()) {
             this->bidTree->remove(highestBid);
@@ -125,60 +129,57 @@ public:
         }
     }
 
-    void executeMarketOrderAgainstBook(Order* order) {
-        // Loop till order filled or no more orders in book.
-        // Slippage can occur when we bump up or down price levels to fill the order.
+    bool canMatchMarketOrders(Order* order, bool isBidOrder) {
+        bool bidCondition = isBidOrder && order->getPrice() >= this->askTree->min();
+        bool askCondition = !isBidOrder && this->bidTree->max() >= order->getPrice();
+        return (bidCondition || askCondition) && ordersExistOnBothSides();
+    }
 
-        bool isBidOrder = (order->getDirection() == 1);
+    void executeMarketOrderAgainstBook(Order* order) {
+        // Sweeo book till order filled or no more orders in book.
+        // Slippage can occur when we sweep up or down price levels to fill the order.
+        bool orderFilled = false;
+        int originalSize = order->getSize();
+        bool isBidOrder = (order->getDirection() == ORDER_LONG);
+
         PriceLevelTree*& targetTree = isBidOrder ? this->askTree : this->bidTree;
         std::unordered_map<int, OrderQueue*>& targetQueue = isBidOrder ? this->asks : this->bids;
-        bool orderFilled = false;
+        std::cout << "Market Order Size: " << originalSize << "\n";
 
-        std::cout << "Market Order Size: " << order->getSize() << "\n";
-
-        int originalSize = order->getSize();
-
-        while (!orderFilled) { 
+        while (!orderFilled && canMatchMarketOrders(order, isBidOrder)) { 
             // Continue sweeping while price levels exist. CALCULATE AVERAGE EXECUTION PRICE.
-            bool bidCondition = isBidOrder && order->getPrice() >= this->askTree->min();
-            bool askCondition = !isBidOrder && this->bidTree->max() >= order->getPrice();
-
-            if (!(bidCondition || askCondition)) {
-                // Break when order matching cannot occur EVEN if price levels exist.
-                break;
-            }
-
+          
             int bestPrice = isBidOrder ? targetTree->min() : targetTree->max(); // Get the best price (min for ask, max for bid)
-            
-            Order* bestOrder = targetQueue[bestPrice]->getHighestPriorityOrder();
-            
+            OrderQueue* bestQueue = targetQueue[bestPrice];
+            Order* bestOrder = bestQueue->getHighestPriorityOrder();
             int executionPrice = restingOrderExecutionPrice(order, bestOrder);
+
+            if (handleFillOrKill(bestQueue, bestOrder, order->getSize())) {
+                removeEmptyPriceLevels();
+                continue;
+            }
+            
             if (order->getSize() > bestOrder->getSize()) {
                 // Market order size is greater than the best price level order size (partial fill of market order)
                 // Remove fully filled best order
                 order->partialFill(bestOrder->getSize());
-                targetQueue[bestPrice]->removeHighestPriorityOrder();
+                bestQueue->removeHighestPriorityOrder();
                 std::cout << "Market order partial fill and best match filled, BEST MATCH SIZE: " << bestOrder->getSize() << " ORDER SIZE: " << order->getSize() << "\n";
             } else if (order->getSize() < bestOrder->getSize()) {
                 // Market order size is less than the best price level order size (partial fill of best order)
-                targetQueue[bestPrice]->partialFill(bestOrder, order->getSize());
+                bestQueue->partialFill(bestOrder, order->getSize());
                 orderFilled = true;
                 std::cout << "Market order and best match partial filled, BEST MATCH SIZE: " << bestOrder->getSize() << " ORDER SIZE: " << order->getSize() << "\n";
             } else {
                 // Market order size equals the best price level order size (full fill for both)
-                targetQueue[bestPrice]->removeHighestPriorityOrder();
+                bestQueue->removeHighestPriorityOrder();
                 orderFilled = true;
                 std::cout << "Market order and best match filled\n";
             }
-
-            if (targetQueue[bestPrice]->getTotalVolume() == 0) {
-                // Remove empty price levels from the target tree
-                targetTree->remove(bestPrice);
-                targetQueue.erase(bestPrice);
-            }
+            removeEmptyPriceLevels();
         }
 
-        if ( !orderFilled ) {
+        if (!orderFilled) {
             if (order->getSize() < originalSize) {
                 std::cout << "Market Order Partial Fill\n"; 
             } else {
@@ -191,8 +192,8 @@ public:
         }
     }
 
-    bool handleFillOrKill(OrderQueue* orderQueue, Order* order, OrderQueue* queue) {
-        if (order->getType() == 4 && queue->getTotalVolume() < order->getSize()) {
+    bool handleFillOrKill(OrderQueue* orderQueue, Order* order, int totalVolumeAvailable) {
+        if (order->getType() == ORDER_FILL_OR_KILL && totalVolumeAvailable < order->getSize()) {
             // Order is bigger than total volume at best price level on other side.
             orderQueue->removeHighestPriorityOrder();
             std::cout << "FOK Order: " << order->getOrderID() << " Cancelled, Reason: Insufficient Volume\n";
@@ -206,9 +207,18 @@ public:
         return (bidOrder->getOrderID() < askOrder->getOrderID()) ? bidOrder->getPrice() : askOrder->getPrice();
     }
 
+    bool ordersExistOnBothSides() {
+        // check price levels containing orders exist in the bid and ask tree
+        return (!this->bidTree->isEmpty() && !this->askTree->isEmpty());
+    }
+
     bool canMatchOrders() {
-        // check price levels containing orders exist in the bid and ask tree and ensure the max bid is greater than the min ask.
-        return (!this->bidTree->isEmpty() && !this->askTree->isEmpty() && this->bidTree->max() >= this->askTree->min());
+        // ensure the max bid is greater than the min ask.
+        return (ordersExistOnBothSides() && this->bidTree->max() >= this->askTree->min());
+    }
+
+    void handleStopLimit(Order* order, OrderQueue* orderQueue) {
+        orderQueue->removeHighestPriorityOrder();
     }
 
     void matchOrders() {
@@ -222,8 +232,8 @@ public:
             Order* bidOrder = bidQueue->getHighestPriorityOrder();
             Order* askOrder = askQueue->getHighestPriorityOrder();
 
-            if (handleFillOrKill(bidQueue, bidOrder, askQueue) || handleFillOrKill(askQueue, askOrder, bidQueue)) {
-                removeEmptyPriceLevels(highestBid, lowestAsk);
+            if (handleFillOrKill(bidQueue, bidOrder, askQueue->getTotalVolume()) || handleFillOrKill(askQueue, askOrder, bidQueue->getTotalVolume())) {
+                removeEmptyPriceLevels();
                 continue;
             }
 
@@ -248,7 +258,7 @@ public:
                 bidQueue->removeHighestPriorityOrder();
                 std::cout << "Bid Order: " << bidOrderId << " matched with Ask Order Partial Fill: " << askOrderId << " at Price: " << executionPrice << "\n";
             }
-            removeEmptyPriceLevels(highestBid, lowestAsk);
+            removeEmptyPriceLevels();
         }
         std::cout << "* Finished Matching *" << "\n";
     }

@@ -40,7 +40,7 @@ using namespace std;
  * This class is marked as `final`, indicating it cannot be inherited from, to preserve its design 
  * as a standalone representation of a trading order.
  */
-class Order final {
+class Order {
 private:
     double time; 
     int orderID;
