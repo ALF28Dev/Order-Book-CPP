@@ -63,7 +63,7 @@ public:
         }
         priceLevel[price]->addOrder(order); // Add order at price level.
         std::cout << "Order Added to Book (ID: " << this->id << " Type: " << order->getType() << " Size: " << order->getSize() << " Price: " << price << " Direction: " << order->getDirection() << ")\n";
-        orderIdMap[id] = order;
+        orderIdMap[this->id] = order;
         ++this->id;
     }
 
@@ -118,7 +118,7 @@ public:
     void removeEmptyPriceLevels() {
         int highestBid = this->bidTree->max();
         int lowestAsk = this->askTree->min();
-        // Remove price level from tree as no orders exist at that level
+        // Remove price level from tree as no orders exist at that level.
         if (!this->bids[highestBid]->getSize()) {
             this->bidTree->remove(highestBid);
         }
@@ -148,7 +148,7 @@ public:
         while (!orderFilled && canMatchMarketOrders(order, isBidOrder)) { 
             // Continue sweeping while price levels exist.
           
-            int bestPrice = isBidOrder ? targetTree->min() : targetTree->max(); // Get the best price (min for ask, max for bid)
+            int bestPrice = isBidOrder ? targetTree->min() : targetTree->max(); // Get the best price (min for ask, max for bid).
             OrderQueue* bestQueue = targetQueue[bestPrice];
             Order* bestOrder = bestQueue->getHighestPriorityOrder();
             int executionPrice = restingOrderExecutionPrice(order, bestOrder);
@@ -158,18 +158,18 @@ public:
             }
             
             if (order->getSize() > bestOrder->getSize()) {
-                // Market order size is greater than the best price level order size (partial fill of market order)
-                // Remove fully filled best order
+                // Market order size is greater than the best price level order size (partial fill of market order).
+                // Remove fully filled best order.
                 order->partialFill(bestOrder->getSize());
                 bestQueue->removeHighestPriorityOrder();
                 std::cout << "Market order partial fill and best match filled, BEST MATCH SIZE: " << bestOrder->getSize() << " ORDER SIZE: " << order->getSize() << "\n";
             } else if (order->getSize() < bestOrder->getSize()) {
-                // Market order size is less than the best price level order size (partial fill of best order)
+                // Market order size is less than the best price level order size (partial fill of best order).
                 bestQueue->partialFill(bestOrder, order->getSize());
                 orderFilled = true;
                 std::cout << "Market order and best match partial filled, BEST MATCH SIZE: " << bestOrder->getSize() << " ORDER SIZE: " << order->getSize() << "\n";
             } else {
-                // Market order size equals the best price level order size (full fill for both)
+                // Market order size equals the best price level order size (full fill for both).
                 bestQueue->removeHighestPriorityOrder();
                 orderFilled = true;
                 std::cout << "Market order and best match filled\n";
@@ -207,7 +207,7 @@ public:
     }
 
     bool ordersExistOnBothSides() {
-        // Check price levels containing orders exist in the bid and ask tree
+        // Check price levels containing orders exist in the bid and ask tree.
         return (!this->bidTree->isEmpty() && !this->askTree->isEmpty());
     }
 
@@ -220,9 +220,12 @@ public:
         // Cast order to limit type to access limit order specific functions.
         limitOrder* lmtOrder = dynamic_cast<limitOrder*>(order);
         if (order->getType() == ORDER_STOP_LIMIT && !lmtOrder->hasLimitBeenHit()) {
+            std::cout << "Limit order Hit, ID: " << lmtOrder->getOrderID() << "\n";
             // Limit order hasn't been moved to its specified limit price yet.
             // Remove order from its current position in book.
             orderQueue->removeHighestPriorityOrder();
+            // Clear any empty price levels as a result of the move.
+            removeEmptyPriceLevels();
             // Update the price of the order to the limit price after it was hit.
             lmtOrder->updatePrice(lmtOrder->getLimitPrice());
             // Add it back to the book at its limit price.
@@ -233,7 +236,8 @@ public:
     }
 
     void matchOrders() {
-        while (canMatchOrders()) {            
+        while (canMatchOrders()) {    
+            cout << "loop\n";        
             int highestBid = this->bidTree->max();
             int lowestAsk = this->askTree->min();
 
@@ -295,7 +299,7 @@ int main() {
     book->addOrderToBook(123.7, ORDER_FILL_OR_KILL, 20, 214, -1);
     book->addOrderToBook(123.6, ORDER_LIMIT, 22, 214, 1);
     book->addOrderToBook(123.7, ORDER_LIMIT, 20, 214, -1);
-    book->addOrderToBook(123.2, ORDER_LIMIT, 1, 215, 1);
+    book->addOrderToBook(123.2, ORDER_STOP_LIMIT, 1, 215, 1, 217);
     book->addOrderToBook(123.3, ORDER_LIMIT, 2, 214, 1);
     book->addOrderToBook(123.4, ORDER_LIMIT, 4, 213, 1);
     book->addOrderToBook(123.5, ORDER_LIMIT, 6, 212, 1);

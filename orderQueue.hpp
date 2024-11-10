@@ -100,7 +100,6 @@ public:
             this->dummyHead->setNext(nullptr);
             this->tail = this->dummyHead;   // Reset tail to dummy head if no more orders
         }
-
         this->dummyHead->setNext(nhpo);
         --this->size;
         *totalVolume -= hpo->getSize();
