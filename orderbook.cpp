@@ -237,7 +237,6 @@ public:
 
     void matchOrders() {
         while (canMatchOrders()) {    
-            cout << "loop\n";        
             int highestBid = this->bidTree->max();
             int lowestAsk = this->askTree->min();
 
