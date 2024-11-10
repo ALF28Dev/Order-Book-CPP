@@ -95,14 +95,12 @@ public:
 
     void addOrderToBook(double time = 0.0, int orderType = 1, int size = 0, int price = 0, int direction = 0, int limitPrice = 0) {
         if (orderType == ORDER_MARKET) {
+            // Market Order
             Order* order = new Order(time, orderType, this->id, size, price, direction);
-            // market order immediately executed against the best available price in the opposite side of the order book (bids for sell orders, asks for buy orders).
             executeMarketOrderAgainstBook(order);
         } else if (orderType == ORDER_LIMIT || orderType == ORDER_STOP_LIMIT || orderType == ORDER_FILL_OR_KILL) {
+            // Limit Order, Stop Limit Order, Fill or Kill (FOK) Limit Order
             limitOrder* order = new limitOrder(time, orderType, this->id, size, price, direction, limitPrice);
-            // Limit Order
-            // Stoplimit order only hits the book when (perhaps modify to add to seperate queue so it never hits the main book)
-            // Fill or Kill (FOK) Limit Order
             addToBook(order);
         }
     }
@@ -111,16 +109,16 @@ public:
         int price = order->getPrice();
         if (order->getDirection() == ORDER_LONG) {
             this->bidTree->insert(price);
-            return bids; // return bids price level.
+            return bids; // Return bids price level.
         }
         this->askTree->insert(price);
-        return asks; // return asks price level;
+        return asks; // Return asks price level.
     }
 
     void removeEmptyPriceLevels() {
         int highestBid = this->bidTree->max();
         int lowestAsk = this->askTree->min();
-        // remove price level from tree as no orders exist at that level
+        // Remove price level from tree as no orders exist at that level
         if (!this->bids[highestBid]->getSize()) {
             this->bidTree->remove(highestBid);
         }
@@ -136,7 +134,8 @@ public:
     }
 
     void executeMarketOrderAgainstBook(Order* order) {
-        // Sweeo book till order filled or no more orders in book.
+        // Immediately executed against the best available price in the opposite side of the order book (bids for sell orders, asks for buy orders).
+        // Sweep book till order filled or no more orders in book.
         // Slippage can occur when we sweep up or down price levels to fill the order.
         bool orderFilled = false;
         int originalSize = order->getSize();
@@ -147,15 +146,14 @@ public:
         std::cout << "Market Order Size: " << originalSize << "\n";
 
         while (!orderFilled && canMatchMarketOrders(order, isBidOrder)) { 
-            // Continue sweeping while price levels exist. CALCULATE AVERAGE EXECUTION PRICE.
+            // Continue sweeping while price levels exist.
           
             int bestPrice = isBidOrder ? targetTree->min() : targetTree->max(); // Get the best price (min for ask, max for bid)
             OrderQueue* bestQueue = targetQueue[bestPrice];
             Order* bestOrder = bestQueue->getHighestPriorityOrder();
             int executionPrice = restingOrderExecutionPrice(order, bestOrder);
-
-            if (handleFillOrKill(bestQueue, bestOrder, order->getSize())) {
-                removeEmptyPriceLevels();
+           
+            if (handleStopLimit(bestOrder, bestQueue) || handleFillOrKill(bestQueue, bestOrder, order->getSize())) {
                 continue;
             }
             
@@ -197,6 +195,7 @@ public:
             // Order is bigger than total volume at best price level on other side.
             orderQueue->removeHighestPriorityOrder();
             std::cout << "FOK Order: " << order->getOrderID() << " Cancelled, Reason: Insufficient Volume\n";
+            removeEmptyPriceLevels();
             return true;
         }
         return false;
@@ -208,17 +207,29 @@ public:
     }
 
     bool ordersExistOnBothSides() {
-        // check price levels containing orders exist in the bid and ask tree
+        // Check price levels containing orders exist in the bid and ask tree
         return (!this->bidTree->isEmpty() && !this->askTree->isEmpty());
     }
 
     bool canMatchOrders() {
-        // ensure the max bid is greater than the min ask.
+        // Ensure the max bid is greater than the min ask.
         return (ordersExistOnBothSides() && this->bidTree->max() >= this->askTree->min());
     }
 
-    void handleStopLimit(Order* order, OrderQueue* orderQueue) {
-        orderQueue->removeHighestPriorityOrder();
+    bool handleStopLimit(Order* order, OrderQueue* orderQueue) {
+        // Cast order to limit type to access limit order specific functions.
+        limitOrder* lmtOrder = dynamic_cast<limitOrder*>(order);
+        if (order->getType() == ORDER_STOP_LIMIT && !lmtOrder->hasLimitBeenHit()) {
+            // Limit order hasn't been moved to its specified limit price yet.
+            // Remove order from its current position in book.
+            orderQueue->removeHighestPriorityOrder();
+            // Update the price of the order to the limit price after it was hit.
+            lmtOrder->updatePrice(lmtOrder->getLimitPrice());
+            // Add it back to the book at its limit price.
+            addToBook(lmtOrder);
+            return true;
+        }
+        return false;
     }
 
     void matchOrders() {
@@ -232,14 +243,16 @@ public:
             Order* bidOrder = bidQueue->getHighestPriorityOrder();
             Order* askOrder = askQueue->getHighestPriorityOrder();
 
+            if (handleStopLimit(bidOrder, bidQueue) || handleStopLimit(askOrder, askQueue)) {
+                continue;
+            }
+
             if (handleFillOrKill(bidQueue, bidOrder, askQueue->getTotalVolume()) || handleFillOrKill(askQueue, askOrder, bidQueue->getTotalVolume())) {
-                removeEmptyPriceLevels();
                 continue;
             }
 
             int bidOrderId = bidOrder->getOrderID();
             int askOrderId = askOrder->getOrderID();
-
             int executionPrice = restingOrderExecutionPrice(bidOrder, askOrder);
 
             if (bidOrder->getSize() == askOrder->getSize()) {

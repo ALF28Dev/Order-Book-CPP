@@ -21,4 +21,9 @@ public:
     bool hasLimitBeenHit() {
         return this->limitHit;
     }
+
+    void updatePrice(int price) {
+        this->limitHit = true;
+        this->setPrice(price);
+    }
 };

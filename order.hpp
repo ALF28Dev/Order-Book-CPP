@@ -52,6 +52,9 @@ private:
     Order* prev;
 
 public:
+
+    virtual ~Order() {}
+
     Order(double time = 0.0, int order = 1, int id = 0, int size = 0, int price = 0, int direction = 0)
         : time(time), type(order), orderID(id), size(size), price(price), direction(direction),
           next(nullptr), prev(nullptr) {}
@@ -98,6 +101,10 @@ public:
 
     Order* getPrev() {
         return this->prev;
+    }
+
+    void setPrice(int price) {
+        this->price = price;
     }
 
     void setSize(int size) {
