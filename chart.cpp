@@ -1,6 +1,8 @@
 #include <vector>
 #include <cstdio>
 #include <unordered_map>
+#include <iostream>
+using namespace std;
 
 class Chart {
 private:
@@ -11,11 +13,11 @@ private:
     std::vector<int> allPriceLevels;
 
     int calculateChartUpperLimit() {
-        int maxCumulativeVolume = std::max(
-            *std::max_element(this->cumulativeBidVolume.begin(), this->cumulativeBidVolume.end()),
-            *std::max_element(this->cumulativeAskVolume.begin(), this->cumulativeAskVolume.end())
-        );
-        return maxCumulativeVolume * 1.1;
+        int maxBidVolume = empty(this->cumulativeBidVolume) ? 0 : 
+                        *std::max_element(this->cumulativeBidVolume.begin(), this->cumulativeBidVolume.end());
+        int maxAskVolume = empty(this->cumulativeAskVolume) ? 0 : 
+                        *std::max_element(this->cumulativeAskVolume.begin(), this->cumulativeAskVolume.end());
+        return std::max(maxBidVolume, maxAskVolume) * 1.1;
     }
 
 public:
@@ -32,7 +34,6 @@ public:
         for (int priceLevel : allPriceLevels) {
             priceLevelMap[priceLevel] = ++i;
         }
-        
         for (int priceLevel : bidPriceLevels) {
             this->bidPriceLevels.push_back(priceLevelMap[priceLevel]);
         }
@@ -42,12 +43,12 @@ public:
     }
 
     void plot() {
-        FILE *plotPipe = popen("gnuplot -persistent", "w");
+        FILE* plotPipe = popen("gnuplot -persistent", "w");
         fprintf(plotPipe, "set terminal qt size 800,600\n");
         fprintf(plotPipe, "set title 'Order Book Depth'\n");
         fprintf(plotPipe, "set xlabel 'Price Levels (Bids & Asks)'\n");
         fprintf(plotPipe, "set ylabel 'Cumulative Volume'\n");
-        fprintf(plotPipe, "set xrange [0.5:%zu.5]\n", this->allPriceLevels.size());
+        fprintf(plotPipe, "set xrange [0.5:%zu.5]\n", size(this->allPriceLevels));
         fprintf(plotPipe, "set yrange [0:%d]\n", calculateChartUpperLimit());
         fprintf(plotPipe, "set xtics (");
         for (int i = 0; i < this->allPriceLevels.size(); ++i) {
