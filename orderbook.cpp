@@ -99,26 +99,26 @@ public:
         std::vector<int> bidPriceLevels;
         std::vector<int> cumulativeAskVolume;
         std::vector<int> askPriceLevels;
-        int cumulativeVolume;
-        std::set<int>* allAskPriceLevels = this->askTree->getAllLevels();
-        cumulativeVolume = 0;
-        for (std::set<int>::reverse_iterator it = allAskPriceLevels->rbegin(); it != allAskPriceLevels->rend(); ++it) {
-            cumulativeVolume += this->asks[*it]->getTotalVolume();
-        }
-        for (std::set<int>::reverse_iterator it = allAskPriceLevels->rbegin(); it != allAskPriceLevels->rend(); ++it) {
-            int levelVolume = this->asks[*it]->getTotalVolume();
-            bidPriceLevels.push_back(*it);
-            cumulativeBidVolume.push_back(cumulativeVolume);
-            cumulativeVolume -= levelVolume;
-        }
         std::set<int>* allBidPriceLevels = this->bidTree->getAllLevels();
+        std::set<int>* allAskPriceLevels = this->askTree->getAllLevels();
+        int cumulativeVolume;
         cumulativeVolume = 0;
         for (std::set<int>::reverse_iterator it = allBidPriceLevels->rbegin(); it != allBidPriceLevels->rend(); ++it) {
             cumulativeVolume += this->bids[*it]->getTotalVolume();
-            askPriceLevels.push_back(*it);
-            cumulativeAskVolume.push_back(cumulativeVolume);
         }
-        Chart* graph = new Chart(cumulativeBidVolume, cumulativeAskVolume, bidPriceLevels, askPriceLevels);
+        for (std::set<int>::iterator it = allBidPriceLevels->begin(); it != allBidPriceLevels->end(); ++it) {
+            int levelVolume = this->bids[*it]->getTotalVolume();
+            bidPriceLevels.push_back(*it);
+            cumulativeAskVolume.push_back(cumulativeVolume);
+            cumulativeVolume -= levelVolume;
+        }
+        cumulativeVolume = 0;
+        for (std::set<int>::iterator it = allAskPriceLevels->begin(); it != allAskPriceLevels->end(); ++it) {
+            cumulativeVolume += this->asks[*it]->getTotalVolume();
+            askPriceLevels.push_back(*it);
+            cumulativeBidVolume.push_back(cumulativeVolume);
+        }
+        Chart* graph = new Chart(cumulativeAskVolume, cumulativeBidVolume, bidPriceLevels, askPriceLevels);
         graph->plot();
     }
 
@@ -334,9 +334,32 @@ int main() {
     book->addOrderToBook(123.4, ORDER_LIMIT, 7, 216, -1);
     book->addOrderToBook(123.5, ORDER_LIMIT, 5, 213, 1);
     book->matchOrders();
-    book->visualiseChart();
+    //book->visualiseChart();
     book->addOrderToBook(123.5, ORDER_MARKET, 5, 213, -1);
     //book->visualise();
+
+    book->addOrderToBook(123.5, ORDER_LIMIT, 2, 210, 1);
+    book->addOrderToBook(123.5, ORDER_LIMIT, 4, 209, 1);
+    book->addOrderToBook(123.5, ORDER_LIMIT, 2, 209, 1);
+    book->addOrderToBook(123.5, ORDER_LIMIT, 3, 207, 1);
+    book->addOrderToBook(123.5, ORDER_LIMIT, 4, 206, 1);
+    book->addOrderToBook(123.5, ORDER_LIMIT, 6, 206, 1);
+    book->addOrderToBook(123.5, ORDER_LIMIT, 5, 206, 1);
+
+
+    book->addOrderToBook(123.5, ORDER_LIMIT, 1, 213, -1);
+    book->addOrderToBook(123.5, ORDER_LIMIT, 2, 215, -1);
+    book->addOrderToBook(123.5, ORDER_LIMIT, 3, 216, -1);
+    book->addOrderToBook(123.5, ORDER_LIMIT, 3, 217, -1);
+    book->addOrderToBook(123.5, ORDER_LIMIT, 4, 217, -1);
+    book->addOrderToBook(123.5, ORDER_LIMIT, 5, 218, -1);
+    book->addOrderToBook(123.5, ORDER_LIMIT, 6, 218, -1);
+    book->addOrderToBook(123.5, ORDER_LIMIT, 7, 219, -1);
+    book->addOrderToBook(123.5, ORDER_LIMIT, 7, 220, -1);
+    book->addOrderToBook(123.5, ORDER_LIMIT, 8, 221, -1);
+    book->addOrderToBook(123.5, ORDER_LIMIT, 8, 222, -1);
+    book->matchOrders();
+
     book->visualiseChart();
     return 0;
 }

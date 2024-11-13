@@ -25,7 +25,7 @@ public:
         for (int priceLevel : bidPriceLevels) {
             this->allPriceLevels.push_back(priceLevel);
         }
-        this->allPriceLevels.push_back(0);
+        this->allPriceLevels.push_back(-1);
         for (int priceLevel : askPriceLevels) {
             this->allPriceLevels.push_back(priceLevel);
         }
@@ -48,6 +48,7 @@ public:
         fprintf(plotPipe, "set title 'Order Book Depth'\n");
         fprintf(plotPipe, "set xlabel 'Price Levels (Bids & Asks)'\n");
         fprintf(plotPipe, "set ylabel 'Cumulative Volume'\n");
+        fprintf(plotPipe, "set boxwidth 0.8 relative\n");
         fprintf(plotPipe, "set xrange [0.5:%zu.5]\n", size(this->allPriceLevels));
         fprintf(plotPipe, "set yrange [0:%d]\n", calculateChartUpperLimit());
         fprintf(plotPipe, "set xtics (");
