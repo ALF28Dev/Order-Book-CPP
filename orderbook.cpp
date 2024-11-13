@@ -7,6 +7,7 @@
 #include "priceLevelTree.hpp"
 #include "orderType.hpp"
 #include "orderSide.hpp"
+#include "chart.hpp"
 using namespace std;
 
 /**
@@ -91,6 +92,34 @@ public:
             std::cout << *it << " " << output << "\n";
         }
         std::cout << "----------------------\nBIDS:\n";
+    }
+
+    void visualiseChart() {
+        std::vector<int> cumulativeBidVolume;
+        std::vector<int> bidPriceLevels;
+        std::vector<int> cumulativeAskVolume;
+        std::vector<int> askPriceLevels;
+        int cumulativeVolume;
+        std::set<int>* allAskPriceLevels = this->askTree->getAllLevels();
+        cumulativeVolume = 0;
+        for (std::set<int>::reverse_iterator it = allAskPriceLevels->rbegin(); it != allAskPriceLevels->rend(); ++it) {
+            cumulativeVolume += this->asks[*it]->getTotalVolume();
+        }
+        for (std::set<int>::reverse_iterator it = allAskPriceLevels->rbegin(); it != allAskPriceLevels->rend(); ++it) {
+            int levelVolume = this->asks[*it]->getTotalVolume();
+            bidPriceLevels.push_back(*it);
+            cumulativeBidVolume.push_back(cumulativeVolume);
+            cumulativeVolume -= levelVolume;
+        }
+        std::set<int>* allBidPriceLevels = this->bidTree->getAllLevels();
+        cumulativeVolume = 0;
+        for (std::set<int>::reverse_iterator it = allBidPriceLevels->rbegin(); it != allBidPriceLevels->rend(); ++it) {
+            cumulativeVolume += this->bids[*it]->getTotalVolume();
+            askPriceLevels.push_back(*it);
+            cumulativeAskVolume.push_back(cumulativeVolume);
+        }
+        Chart* graph = new Chart(cumulativeBidVolume, cumulativeAskVolume, bidPriceLevels, askPriceLevels);
+        graph->plot();
     }
 
     void addOrderToBook(double time = 0.0, int orderType = 1, int size = 0, int price = 0, int direction = 0, int limitPrice = 0) {
@@ -282,8 +311,6 @@ public:
 
 int main() {
     std::unique_ptr<Orderbook> book = std::make_unique<Orderbook>();
-
-
     book->addOrderToBook(123.5, ORDER_LIMIT, 4, 211, -1);
     book->addOrderToBook(123.5, ORDER_LIMIT, 2, 214, -1);
     book->addOrderToBook(123.5, ORDER_LIMIT, 3, 214, -1);
@@ -306,15 +333,10 @@ int main() {
     book->addOrderToBook(123.3, ORDER_LIMIT, 3, 215, -1);
     book->addOrderToBook(123.4, ORDER_LIMIT, 7, 216, -1);
     book->addOrderToBook(123.5, ORDER_LIMIT, 5, 213, 1);
-
-
     book->matchOrders();
-    book->visualise();
-
+    book->visualiseChart();
     book->addOrderToBook(123.5, ORDER_MARKET, 5, 213, -1);
-
-
-    book->visualise();
-
+    //book->visualise();
+    book->visualiseChart();
     return 0;
 }
