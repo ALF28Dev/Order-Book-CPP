@@ -1,5 +1,9 @@
 # Order-Book-CPP
 
+
+![GNU Plot of Order book](./example-orderbook-chart.png)
+
+
 Hey everyone, thank you for taking the time to view this repository. This is my C++-based Order Book project, which I used as an opportunity to learn some fundamental concepts related to market microstructure. The project aims to replicate core functionalities of one of the cornerstone components of an exchange: the order book.
 
 
