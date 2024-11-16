@@ -1,7 +1,7 @@
 # Order-Book-CPP
 ![GNU Plot of Order book](./images/example-orderbook-chart.png)
 
-Hey everyone, thank you for taking the time to view this repository. This is my C++ based order book project, which I used as an opportunity to learn some basic C++ and fundamental concepts related to market microstructure. The project aims to replicate core functionalities of one of the cornerstone components of an exchange: the order book. I used the included [LOBSTER](https://lobsterdata.com/) readme txt file to learn about what information is associated with every order in an order book on an exchange.
+Hey everyone, thank you for taking the time to view this repository. This is my C++ based order book project, which I used as an opportunity to learn some basic C++ and fundamental concepts related to market microstructure. The project aims to replicate core functionalities of one of the cornerstone components of an exchange: the order book. I used the included [LOBSTER](https://lobsterdata.com/) readme txt file to learn about what information is associated with every order in an order book on an exchange. *Additional Note: This project isn't yet a low latency project*
 
 ## Book Structure
 
@@ -20,7 +20,7 @@ Hey everyone, thank you for taking the time to view this repository. This is my 
     - Every order in the book is added to the Doubly Linked List held at the price level corresponding to that of the order. When an order arrives we lookup the corresponding FIFO queue using the Unordered map in **O(1) time** and append it to the back to ensure the orders which arrive first are matched first.
     - The Doubly Linked List structure has a pointer to the head which enables access to the highest priority order (first) in **O(1) time**, and new orders can be added to the end of the list in **O(1) time** using the pointer to the tail.
 
-- **Orders***
+- **Orders**
     - An Order class has been created to hold all of the data associated with an order. An order class allows us to formally structure the attributes of an order, including:
         - Price
         - Type
@@ -29,14 +29,32 @@ Hey everyone, thank you for taking the time to view this repository. This is my 
         - ID
         - Time of arrival
         - Next & Prev pointers for the FIFO Queues
-    *Not all orders require the same data and some require additional fields so this Order class is a parent from which additional child Order classes can be derived.*
+    - Not all orders require the same data and some require additional fields so this Order class is a parent from which additional child Order classes can be derived.
     - As stated a Limit order class has been defined which allows us to create Stop Limit Orders with an additional price field. Once the original target price field is hit by the book, the Limit Order is moved to its target price in the book. 
 
 ## Matching Engine
-- Limit Order Matching
-- Market Order Execution
+- **Limit Order Matching**
+    - **Order Matching Conitions**
+        - The Limit order matching system is implemented within the function `matchOrders()`. This function matches Orders within the book while the book satisfies the conditions for matching orders. This condition requires orders to exist on both sides of the book & the Max Bid >= Min Ask. This means someone is willing to pay more than the lowest price which someone is willing to pay, therefore we can perform a match.
+    - **Fill Types (Full Fill & Partial Fill)**
+        - The book structure I have created supports both full and partial fills.
+        - If the size of the order on one side of the book is less than the order on the other side with which it is being matched, the smaller order will be fully filled, while the larger order will be partially filled, with the remaining unmatched quantity staying in the order book.
+        - **Handling Partial Fills**
+            - When an order is partially filled it remains in the book in the same position within the FIFO Queue except its size is updated to reflect how much of the order has been filled.
+        - **Handling Full Fills**
+            - When an order is filled it is removed from the book. It is taken out of the FIFO queue and a new order takes its place as the highest priority.
+            - If no other orders exist at that price level, the price level is removed from the Set (Red-Black Tree) to ensure the Min & Max functions always retrieve the best price levels which contain orders.
+    - **Handling Stop Limit Orders**
+        - During order matching we always fetch the best Bid & Ask when the conditions for matching are met. If either of these orders is a Stop Limit Order we first check to see if it has already been moved to its correct position in the book. If it has not, we update the price field of the order to reflect the target price set by the user, and move the order to the correct position in the book.
+    - **Handling Fill-Or-Kill Orders**
+        - If either of the best Bid & Ask orders is a Fill-Or-Kill order we perform an additional check which ensures that the best price level on the other side of the book contains sufficient available volume to fill the order. If not, we remove the order from the book and do not perform a match.
+    - **Execution Price**
+        - When a match occurs the resting order execution price is used as the execution price. This dictates that the execution price between two matched orders should be the price of the order which was first in the book.
 
-*Sweeping the book results in slippage*
+- **Market Order Execution**
+
+
+- **Sweeping & Slippage**
 
 ## Types of Orders Accepts
 - Market Orders
