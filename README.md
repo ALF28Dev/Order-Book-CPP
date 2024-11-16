@@ -1,9 +1,14 @@
 # Order-Book-CPP
-![GNU Plot of Order book](./example-orderbook-chart.png)
+![GNU Plot of Order book](./images/example-orderbook-chart.png)
 
 Hey everyone, thank you for taking the time to view this repository. This is my C++ based order book project, which I used as an opportunity to learn some basic C++ and fundamental concepts related to market microstructure. The project aims to replicate core functionalities of one of the cornerstone components of an exchange: the order book. I used the included [LOBSTER](https://lobsterdata.com/) readme txt file to learn about what information is associated with every order in an order book on an exchange.
 
 ## Book Structure
+
+![GNU Plot of Order book](./images/orderbook-structure.png.png)
+
+
+
 - Set for the red black tree
 
 ## Matching Engine
