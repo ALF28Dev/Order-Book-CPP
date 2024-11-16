@@ -34,7 +34,7 @@ Hey everyone, thank you for taking the time to view this repository. This is my 
 
 ## Matching Engine
 - **Limit Order Matching**
-    - **Order Matching Conitions**
+    - **Order Matching Conditions**
         - The Limit order matching system is implemented within the function `matchOrders()`. This function matches Orders within the book while the book satisfies the conditions for matching orders. This condition requires orders to exist on both sides of the book & the Max Bid >= Min Ask. This means someone is willing to pay more than the lowest price which someone is willing to pay, therefore we can perform a match.
     - **Fill Types (Full Fill & Partial Fill)**
         - The book structure I have created supports both full and partial fills.
@@ -52,25 +52,35 @@ Hey everyone, thank you for taking the time to view this repository. This is my 
         - When a match occurs the resting order execution price is used as the execution price. This dictates that the execution price between two matched orders should be the price of the order which was first in the book.
 
 - **Market Order Execution**
-
+    - Market order execution occurs as soon as a market order hits the book. Upon hitting the book, the Market order is executed against the best price level on the other side of the book until it is filled or until there are no available orders on the other side of the book to match against.
 
 - **Sweeping & Slippage**
+    - During the order matching process for both Limit & Market order execution we sweep the book. We always fetch the best price level for both Bid & Ask orders. 
+    - Large orders may consume all of the volume at the best price level on the other side of the book leading to slippage as we need to move to lower/higher price levels to fill the remaining size of the order which couldn't be filled at the best price level. 
+    - This process is known as sweeping and the outcome of sweeping is slippage, where the user doesn't always recieve the best price.
 
 ## Types of Orders Accepts
-- Market Orders
-- Limit Orders
-- Stop Limit Orders
-- Fill or Kill Orders
+- **Market Orders**
+    - Market orders immediately get executed at the best price level on the other side of the book.
+- **Limit Orders**
+    - Limit orders get added to the book at the specified price level and remain in the book until they are executed.
+- **Stop Limit Orders**
+    - Stop Limit orders get added to the book at a specified price level with an additional target price level. When the specified price level is reached by the book the order is moved and added to the book at the target price level. It remains in this price level until it gets executed.
+- **Fill or Kill Orders**
+    - Fill or Kill orders are limit orders which are added to the book at a specified price. When the price level is reached and the order is ready to be matched we first check to ensure the best price level on the other side of the book has sufficient volume to fill the entire order, otherwise we remove it from the book.
 
 ## Visualising the Book
 - Shows Cumulative Bid/Ask orders strating from the best Bid/Ask to worst Bid/Ask
-    - Cmd Output
-    - GNU Plot Chart
+    - **Cmd Output**
+        - The method `visualise()` within the orderbook class allows for the state of the book at a specific moment in the to be printed to the cmd.
+        - ![CMD Order Book Chart](./images/example-cmd-orderbook-output.png)
+    - **GNU Plot Chart**
+        - The method `visualiseChart()` within the orderbook clss shows the state of the book at a specific moment in time within a formal GNU Bar chart Plot like shown in the image above.
 
 ## Missing Pieces & Future Improvements
 - Thoroughly learn C++ best practices to improve the existing codebase and reduce latency.
 - Convert the time when an order is added to the book into "seconds after midnight with decimal precision of at least milliseconds".
-- Cutom Red Black Tree (set implementation for now due to the underlying strtucture being a Red black Tree)
+- Build a cutom Red Black Tree Class inspired by the underlying mechanism within the Linux OS which structures processes in a Red-Black Tree Structure (set implementation for now due to the underlying strtucture being a Red black Tree)
 - Lock free queue implementation for lower latency
 - Multithreading (Must consider thread safety)
 - Metrics such as order flow, liquidity ratios, fill rate.

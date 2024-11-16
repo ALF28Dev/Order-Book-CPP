@@ -359,7 +359,7 @@ int main() {
     book->addOrderToBook(123.5, ORDER_LIMIT, 8, 221, -1);
     book->addOrderToBook(123.5, ORDER_LIMIT, 8, 222, -1);
     book->matchOrders();
-
+    book->visualise();
     book->visualiseChart();
     return 0;
 }
