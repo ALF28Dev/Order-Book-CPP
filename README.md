@@ -14,24 +14,29 @@ Hey everyone, thank you for taking the time to view this repository. This is my 
 
 - **Price Levels Mapped to FIFO Queues - Unordered Map**
     - Each of the price levels in the Tree structure is added to an Unordered Map, which links each price level (key) to a FIFO Doubly Linked List Queue (Value).
-    - Once we retrieve the best Bid or Ask in **O(1) time*** from the Tree Structure we can access the orders at this price level in **O(1) time** through the Unordered Map.
+    - Once we retrieve the best Bid or Ask in **O(1) time** from the Tree Structure we can access the orders at this price level in **O(1) time** through the Unordered Map.
 
 - **FIFO Queues - Doubly Linked Lists**
     - Every order in the book is added to the Doubly Linked List held at the price level corresponding to that of the order. When an order arrives we lookup the corresponding FIFO queue using the Unordered map in **O(1) time** and append it to the back to ensure the orders which arrive first are matched first.
     - The Doubly Linked List structure has a pointer to the head which enables access to the highest priority order (first) in **O(1) time**, and new orders can be added to the end of the list in **O(1) time** using the pointer to the tail.
 
 - **Orders***
-    - Parent Order Class
-    - Limit Order Child Class Derived from Order
-
-- **Order Type Enums***
-
-- **Chart Class***
-
+    - An Order class has been created to hold all of the data associated with an order. An order class allows us to formally structure the attributes of an order, including:
+        - Price
+        - Type
+        - Direction/Side
+        - Size
+        - ID
+        - Time of arrival
+        - Next & Prev pointers for the FIFO Queues
+    *Not all orders require the same data and some require additional fields so this Order class is a parent from which additional child Order classes can be derived.*
+    - As stated a Limit order class has been defined which allows us to create Stop Limit Orders with an additional price field. Once the original target price field is hit by the book, the Limit Order is moved to its target price in the book. 
 
 ## Matching Engine
 - Limit Order Matching
 - Market Order Execution
+
+*Sweeping the book results in slippage*
 
 ## Types of Orders Accepts
 - Market Orders
@@ -51,5 +56,5 @@ Hey everyone, thank you for taking the time to view this repository. This is my 
 - Lock free queue implementation for lower latency
 - Multithreading (Must consider thread safety)
 - Metrics such as order flow, liquidity ratios, fill rate.
-
+- Update the chart class to have a more appropriate label in the mid point between the best Bid & Ask instead of -1.
 
