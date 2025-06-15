@@ -13,9 +13,9 @@ private:
     std::vector<int> allPriceLevels;
 
     int calculateChartUpperLimit() {
-        int maxCumulativeBidVolume = empty(this->cumulativeBidVolume) ? 0 : 
+        int maxCumulativeBidVolume = this->cumulativeBidVolume.empty() ? 0 : 
                         *std::max_element(this->cumulativeBidVolume.begin(), this->cumulativeBidVolume.end());
-        int maxCumulativeAskVolume = empty(this->cumulativeAskVolume) ? 0 : 
+        int maxCumulativeAskVolume = this->cumulativeAskVolume.empty() ? 0 : 
                         *std::max_element(this->cumulativeAskVolume.begin(), this->cumulativeAskVolume.end());
         return std::max(maxCumulativeBidVolume, maxCumulativeAskVolume) * 1.1;
     }

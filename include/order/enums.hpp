@@ -1,6 +1,11 @@
 #include <stdio.h>
 #include <iostream>
 
+enum orderSide {
+    ORDER_LONG = 1,
+    ORDER_SHORT = -1,
+};
+
 enum orderType {
     ORDER_MARKET = 1,
     ORDER_LIMIT = 2,
