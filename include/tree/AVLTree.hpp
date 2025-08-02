@@ -1,6 +1,5 @@
 #include <tree/priceLevel.hpp>
 #include <set>
-using namespace std;
 
 /**
  * @class AVLTree

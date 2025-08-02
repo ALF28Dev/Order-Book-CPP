@@ -7,7 +7,6 @@
 #include "queue/orderQueue.hpp"
 #include "chart/chart.hpp"
 #include <tree/AVLTree.hpp>
-using namespace std;
 
 /**
  * @class Orderbook
