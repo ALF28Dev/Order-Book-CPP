@@ -46,9 +46,9 @@ Hey everyone, thank you for taking the time to view this repository. This is my 
 
 ## Custom Data Structures
 
-### The Ring Buffer
+### The Ring Buffer - Order Ingress
 
-
+A fixed-size Ring Buffer data structure has been implemented to handle order ingress in a FIFO manner. Tail pointers track the first order ingressed, and head pointers point to the next order object within the ring buffer (this may overwrite existing orders, given we allocate a block of memory at process startup and continuously reuse order objects). As we match orders, we increment the tail, and as we ingress orders, we increment the head. Head/Tail pointers are used as offsets from the first address within the memory pool. 
 
 <div align="center">
     <img width="100%" height="526" alt="Order-Book-CPP-Ring-Buffer" src="https://github.com/user-attachments/assets/11ad8349-1f63-4f08-a16b-d7ca284a9cc5" /><br>
@@ -97,6 +97,7 @@ Hey everyone, thank you for taking the time to view this repository. This is my 
 - Implement Chart Visualisation in version 2.0 using logic from version 1.0.
 - Good Until Cancelled Order Type.
 - Ensure objects allocated within memory pools are correctly aligned in memory.
+- Move away from AVL tree-based implementation to a bitmap-based approach, where we move between price levels by finding the next or previous free level by finding the next/previous set/unset bit.
 
 
 
