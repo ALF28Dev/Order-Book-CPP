@@ -1,7 +1,10 @@
+> [!WARNING]
+> README in progress.
+
 # C++ Based Order Book
 
 > [!IMPORTANT]
-> ### What's new in Version 2.0?
+> ### What's new in Version v2.0.0?
 > - Memory Pools & Eager Allocation
 > - Custom Data Structures
 
