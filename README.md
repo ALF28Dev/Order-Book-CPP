@@ -60,14 +60,19 @@ A fixed-size Ring Buffer data structure has been implemented to handle order ing
 
 
 
-### The Order Map
+### The Order Map - Tick Level to Ring Buffer Map
+
+A fixed-size memory pool is allocated at startup for X number of slots, each representing a tick level within the order book. Within each slot, we eagerly allocate a Ring Buffer structure to manage order ingress at each tick level within the order book. When the Max/Min Bid/Ask is identified within the corresponding AVL tree, we can quickly look up the order ingress queue related to that tick level by using the tick level value as an offset from the first address within the memory pool allocated for the order map.
 
 <div align="center">
     <img width="80%" height="844" alt="Order-Book-CPP-Order-Map" src="https://github.com/user-attachments/assets/0235933f-6f26-4cc9-8d53-72a4a1e45da4" /><br>
     <figcaption>Figure 3: Order Map for Holding Ring Buffers for Each Tick Level</figcaption>
 </div>
 
-### The AVL Tree
+>[!NOTE]
+> - **Eager Allocation:** The eager allocation of a Ring Buffer within each tick level slot of the order map removed the need to allocate `new` ingress ring buffers as we match orders and move across tick levels. As orders are ingressed at each level, we don't need to allocate any `new` Order objects, as previously stated in the section above, as we continuously reuse the allocated order objects. Allocating a Ring buffer at each tick level at process startup removes the need to create `new` and `delete` old Ring Buffers as price levels are occupied and dropped during matching.
+
+### The AVL Tree - Tick Level Structure
 
 <div align="center">
     <img width="80%" height="689" alt="Order-Book-CPP-AVL-Tree" src="https://github.com/user-attachments/assets/92a3c36c-df0f-47d8-af80-63cfb11d1a1b" /><br>
