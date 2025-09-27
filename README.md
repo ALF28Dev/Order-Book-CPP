@@ -48,10 +48,16 @@ Hey everyone, thank you for taking the time to view this repository. This is my 
 
 ### The Ring Buffer
 
+
+
 <div align="center">
-    <img width="80%" height="526" alt="Order-Book-CPP-Ring-Buffer" src="https://github.com/user-attachments/assets/11ad8349-1f63-4f08-a16b-d7ca284a9cc5" /><br>
-    <figcaption>Figure 2: Ring Buffer for Order Ingress</figcaption>
-</div>
+    <img width="100%" height="526" alt="Order-Book-CPP-Ring-Buffer" src="https://github.com/user-attachments/assets/11ad8349-1f63-4f08-a16b-d7ca284a9cc5" /><br>
+</div><br>
+
+>[!NOTE]
+> - **Eager Allocation:** This Ring Buffer data structure has been implemented using a fixed-size memory pool. At process startup, a pool of memory is allocated for X number of Order objects within the Ring Buffer, and each slot is eagerly allocated with an Order object, removing the need to allocate memory for `new` Order objects during process execution.
+> - **Cache Locality:** Allocating a fixed-size memory pool provides the added benefit of cache locality. As the head and tail indices advance while orders are ingested and matched, we move across adjacent cache lines, resulting in fewer cache misses, a higher TLB hit rate, and fewer page faults.
+
 
 
 ### The Order Map
@@ -90,6 +96,7 @@ Hey everyone, thank you for taking the time to view this repository. This is my 
 - Log outputs via sockets for processing. 
 - Implement Chart Visualisation in version 2.0 using logic from version 1.0.
 - Good Until Cancelled Order Type.
+- Ensure objects allocated within memory pools are correctly aligned in memory.
 
 
 
