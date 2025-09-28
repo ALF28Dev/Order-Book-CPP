@@ -7,7 +7,7 @@
 Hey everyone, thank you for taking the time to view this repository. This is my C++ based order book project, which I used as an opportunity to learn some basic C++ and fundamental concepts related to market microstructure. The project aims to replicate core functionalities of one of the cornerstone components of an exchange: the order book. I used the included [LOBSTER](https://lobsterdata.com/) readme.txt file to learn about what information is associated with every order in an order book on an exchange.
 
 <div align="center">
-    <img width="100%" height="701" alt="Screenshot 2025-09-27 at 21 44 00" src="https://github.com/user-attachments/assets/701cde77-6e2a-4c34-9905-5a5caa993942" /><br>
+    <img width="100%" height="701" alt="Order-Book-CPP" src="https://github.com/user-attachments/assets/701cde77-6e2a-4c34-9905-5a5caa993942" /><br>
     <figcaption>Figure 1: Orderbook Structure and Visual</figcaption>
 </div>
 
@@ -86,17 +86,17 @@ Price levels in the order book are efficiently stored in two AVL trees, enabling
 
 <img width="100%" height="689" alt="Order-Book-CPP-AVL-Tree" src="https://github.com/user-attachments/assets/92a3c36c-df0f-47d8-af80-63cfb11d1a1b" /><br>
 
-<img width="100%" height="948" alt="Screenshot 2025-09-28 at 16 57 30" src="https://github.com/user-attachments/assets/8e45d3d8-5d52-44c6-810a-7ffffebe46aa" />
+<img width="100%" height="948" alt="Order-Book-CPP-AVL-Tree-Memory-Pool-Example" src="https://github.com/user-attachments/assets/8e45d3d8-5d52-44c6-810a-7ffffebe46aa" />
 
 >[!NOTE]
-> - **Eager Allocation:** As with the other data structures in this project, all tick levels are allocated into slots within a fixed-size memory pool that is created at process startup. The diagram below illustrates this: a block of memory is allocated, and each slot is initialized with a generic tick-level node whose value is set to -1. As additional tick levels are added to the tree and the best bid/ask levels change over time, we reuse the fixed set of allocated tick-level objects through the bitmap.
+> - **Eager Allocation:** As with the other data structures in this project, all tick levels are allocated into slots within a fixed-size memory pool that is created at process startup. The diagram below illustrates this: a block of memory is allocated, and each slot is initialised with a generic tick-level node whose value is set to -1. As additional tick levels are added to the tree and the best bid/ask levels change over time, we reuse the fixed set of allocated tick-level objects through the bitmap.
 > - **Memory Pool Bitmap:** The bitmap allows us to quickly identify the index of a free tick-level object that can be reused by locating the first bit set to 1 within a 64-bit integer in the list of 64-bit integers.
 
 ### The Tick Level Bitmap
 
 The tick-level bitmap was created to allow quick lookup and confirmation of whether a specific tick level exists within a bid/ask AVL tree. This eliminates the need to traverse the tree to check for the presence of a price level. I chose to use a bitmap instead of other structures, such as a hashmap, to avoid the overhead of using a hash function.
 
-<img width="100%" height="391" alt="Screenshot 2025-09-27 at 15 12 52" src="https://github.com/user-attachments/assets/23d0f982-b7b7-4a88-97c4-14436e1b7b2a" /><br>
+<img width="100%" height="391" alt="Order-Book-CPP-Tick-Level-Bitmap" src="https://github.com/user-attachments/assets/23d0f982-b7b7-4a88-97c4-14436e1b7b2a" /><br>
 
 >[!NOTE]
 > - **Tick Level bitmap Capacity:** The bitmap consists of a list of 15,625 64-bit integers, which provide 1 million bits, each of which can be used to mark whether a price level exists within the bid/ask tree.
@@ -105,7 +105,7 @@ The tick-level bitmap was created to allow quick lookup and confirmation of whet
 
 The Memory Pool Bitmap structure was created to manage the memory allocated for the AVL tree structures within the book. By using memory pools, we can eagerly allocate all tick-level objects upfront, removing the need to repeatedly call new and delete. However, this approach requires effectively managing the allocated tick levels so they can be freed and reused later. To achieve this, I developed a bitmap system that quickly identifies the index or offset of a slot in the memory pool containing a free or unused tick-level object.
 
-<img width="100%" height="543" alt="Screenshot 2025-09-27 at 15 18 34" src="https://github.com/user-attachments/assets/931ea460-ab62-4484-b751-ffc10b5de0d5" /><br>
+<img width="100%" height="543" alt="Order-Book-CPP-Memory-Pool-Bitmap" src="https://github.com/user-attachments/assets/931ea460-ab62-4484-b751-ffc10b5de0d5" /><br>
 
 >[!NOTE]
 > - **Memory Pool Bitmap Capacity:** The current memory pool bitmap consists of a list of ten 64-bit integers, providing the capacity to manage up to 640 allocated tick levels. This capacity can be scaled up as needed.
