@@ -1,12 +1,8 @@
-> [!WARNING]
-> README in progress.
-
 # C++ Based Order Book
 
 > [!IMPORTANT]
 > ### What's new in Version v2.0.0?
-> - Memory Pools & Eager Allocation
-> - Custom Data Structures
+> Custom Data Structures using Memory Pools & Eager Allocation :)
 
 Hey everyone, thank you for taking the time to view this repository. This is my C++ based order book project, which I used as an opportunity to learn some basic C++ and fundamental concepts related to market microstructure. The project aims to replicate core functionalities of one of the cornerstone components of an exchange: the order book. I used the included [LOBSTER](https://lobsterdata.com/) readme.txt file to learn about what information is associated with every order in an order book on an exchange.
 
@@ -15,7 +11,27 @@ Hey everyone, thank you for taking the time to view this repository. This is my 
     <figcaption>Figure 1: Orderbook Structure and Visual</figcaption>
 </div>
 
+## Order
+- An Order class has been created to hold all of the data associated with an order. An order class allows us to structure the attributes of an order, including:
+    - `order_size`: Quantity of order
+    - `order_side`: Bid or Ask
+    - `order_id`: Unique Identifier
+    - `order_type`: Market, Limit, Fill or Kill, or Stop Limit
+    - `order_limit_price`: Limit price for limit orders only.
+
+## Available Order Types
+- **Market Orders**
+    - Market orders immediately get executed at the best price level on the other side of the book.
+- **Limit Orders**
+    - Limit orders get added to the book at the specified price level and remain in the book until they are executed.
+- **Stop Limit Orders**
+    - Stop Limit orders get added to the book at a specified price level with an additional target price level. When the book reaches the specified price level, the order is moved and added to the book at the target price level. It remains at this price level until it gets executed.
+- **Fill or Kill Orders**
+    - Fill or Kill orders are limit orders which are added to the book at a specified price. When the price level is reached and the order is ready to be matched, we first verify that the best price level on the other side of the book has sufficient volume to fill the entire order; otherwise, we remove it from the book.
+
 ## Matching Engine
+- **Market Order Execution**
+    - Market order execution occurs as soon as a market order hits the book. Upon hitting the book, the Market order is executed against the best price level on the other side of the book until it is filled or until there are no available orders on the other side of the book to match against.
 - **Limit Order Matching**
     - **Order Matching Conditions**
         - The Limit order matching system is implemented within the function `match_orders()`. This function matches Orders within the book as long as the book satisfies the conditions for matching orders. This condition requires orders to exist on both sides of the book & the maximum bid (Max Bid) is greater than or equal to the minimum ask (Min Ask). This means that someone is willing to pay more or equal to the lowest ask (Min Ask); therefore, we can perform a match.
@@ -35,17 +51,9 @@ Hey everyone, thank you for taking the time to view this repository. This is my 
   - When a match occurs, the resting order execution price is used as the execution price. This dictates that the execution price between two matched orders should be the price of the order which was first in the book.
 
 ## Sweeping & Slippage
-
-## Available Order Types
-- **Market Orders**
-    - Market orders immediately get executed at the best price level on the other side of the book.
-- **Limit Orders**
-    - Limit orders get added to the book at the specified price level and remain in the book until they are executed.
-- **Stop Limit Orders**
-    - Stop Limit orders get added to the book at a specified price level with an additional target price level. When the book reaches the specified price level, the order is moved and added to the book at the target price level. It remains at this price level until it gets executed.
-- **Fill or Kill Orders**
-    - Fill or Kill orders are limit orders which are added to the book at a specified price. When the price level is reached and the order is ready to be matched, we first verify that the best price level on the other side of the book has sufficient volume to fill the entire order; otherwise, we remove it from the book.
-
+- During the order matching process for both Limit & Market order execution, we sweep the book. We always fetch the best price level for both bid and ask orders. 
+- Large orders may consume all of the volume at the best price level on the other side of the book, leading to slippage as we need to move to lower/higher price levels to fill the remaining size of the order, which couldn't be filled at the best price level. 
+- This process is known as sweeping, and the outcome of sweeping is slippage, where the user doesn't always receive the best price.
 
 ## Custom Data Structures
 
@@ -53,9 +61,8 @@ Hey everyone, thank you for taking the time to view this repository. This is my 
 
 A fixed-size Ring Buffer data structure has been implemented to handle order ingress in a FIFO manner. Tail pointers track the first order ingressed, and head pointers point to the next order object within the ring buffer (this may overwrite existing orders, given we allocate a block of memory at process startup and continuously reuse order objects). As we match orders, we increment the tail, and as we ingress orders, we increment the head. Head/Tail pointers are used as offsets from the first address within the memory pool. 
 
-<div align="center">
-    <img width="100%" height="526" alt="Order-Book-CPP-Ring-Buffer" src="https://github.com/user-attachments/assets/11ad8349-1f63-4f08-a16b-d7ca284a9cc5" /><br>
-</div><br>
+<img width="100%" height="526" alt="Order-Book-CPP-Ring-Buffer" src="https://github.com/user-attachments/assets/11ad8349-1f63-4f08-a16b-d7ca284a9cc5" /><br>
+
 
 >[!NOTE]
 > - **Eager Allocation:** This Ring Buffer data structure has been implemented using a fixed-size memory pool. At process startup, a pool of memory is allocated for X number of Order objects within the Ring Buffer, and each slot is eagerly allocated with an Order object, removing the need to allocate memory for `new` Order objects during process execution.
@@ -67,34 +74,33 @@ A fixed-size Ring Buffer data structure has been implemented to handle order ing
 
 A fixed-size memory pool is allocated at startup for X number of slots, each representing a tick level within the order book. Within each slot, we eagerly allocate a Ring Buffer structure to manage order ingress at each tick level within the order book. When the Max/Min Bid/Ask is identified within the corresponding AVL tree, we can quickly look up the order ingress queue related to that tick level by using the tick level value as an offset from the first address within the memory pool allocated for the order map.
 
-<div align="center">
-    <img width="80%" height="844" alt="Order-Book-CPP-Order-Map" src="https://github.com/user-attachments/assets/0235933f-6f26-4cc9-8d53-72a4a1e45da4" /><br>
-    <figcaption>Figure 3: Order Map for Holding Ring Buffers for Each Tick Level</figcaption>
-</div>
+<img width="100%" height="844" alt="Order-Book-CPP-Order-Map" src="https://github.com/user-attachments/assets/0235933f-6f26-4cc9-8d53-72a4a1e45da4" /><br>
+
 
 >[!NOTE]
 > - **Eager Allocation:** The eager allocation of a Ring Buffer within each tick level slot of the order map removed the need to allocate `new` ingress ring buffers as we match orders and move across tick levels. As orders are ingressed at each level, we don't need to allocate any `new` Order objects, as previously stated in the section above, as we continuously reuse the allocated order objects. Allocating a Ring buffer at each tick level at process startup removes the need to create `new` and `delete` old Ring Buffers as price levels are occupied and dropped during matching.
 
 ### The AVL Tree - Tick Level Structure
 
-<div align="center">
-    <img width="80%" height="689" alt="Order-Book-CPP-AVL-Tree" src="https://github.com/user-attachments/assets/92a3c36c-df0f-47d8-af80-63cfb11d1a1b" /><br>
-    <figcaption>Figure 4: AVL Tree for Efficiently Structuring Tick Levels for Bids/Asks</figcaption>
-</div>
+Price levels within the order book are efficiently stored within two AVL Trees allowing for quick retrieval of the best (Max) Bid and (Min) Ask. The AVL Tree structure was chosen to ensure the trees remain balance to maintain performance over time. The AVL Tree structure consists of nodes called `tick levels`. Each Tick Level holds a value and a pointer to a left and right node.
+
+<img width="100%" height="689" alt="Order-Book-CPP-AVL-Tree" src="https://github.com/user-attachments/assets/92a3c36c-df0f-47d8-af80-63cfb11d1a1b" /><br>
+
+<img width="100%" height="948" alt="Screenshot 2025-09-28 at 16 57 30" src="https://github.com/user-attachments/assets/8e45d3d8-5d52-44c6-810a-7ffffebe46aa" />
+
+>[!NOTE]
+> - **Eager Allocation:** As per the othr data structures within this project all of the Tick Levels are allocated into slots within a fixed size memory pool which is created at process startup. This can be seen in the diagram below showing a block of memory getting allocated, each slot filled with a generic tick level node with a value set to -1. As we add additional tick levels to the tree and the best bid/ask levels changes over time we reuse the fixed number of allocated tick level objects through the usage of a bitmap.
+> - **Bitmap:** The bitmap enables us to quickly identify the index of a free tick level object which can be rused by finding the index of the first bit marked as 1 within a 64 bit intger inside of a list of 64 bit integers.
 
 ### The Tick Level Bitmap
 
-<div align="center">
-    <img width="80%" height="391" alt="Screenshot 2025-09-27 at 15 12 52" src="https://github.com/user-attachments/assets/23d0f982-b7b7-4a88-97c4-14436e1b7b2a" /><br>
-    <figcaption>Figure 5: Tick Level Bitmap for Efficiently Confirming if a Tick Level has orders Pending Ingress</figcaption>
-</div>
+<img width="100%" height="391" alt="Screenshot 2025-09-27 at 15 12 52" src="https://github.com/user-attachments/assets/23d0f982-b7b7-4a88-97c4-14436e1b7b2a" /><br>
+
 
 ### The Memory Pool Bitmap
 
-<div align="center">
-    <img width="80%" height="543" alt="Screenshot 2025-09-27 at 15 18 34" src="https://github.com/user-attachments/assets/931ea460-ab62-4484-b751-ffc10b5de0d5" /><br>
-    <figcaption>Figure 6: Memory Pool Bitmap for Efficiently tracking used/free memory slots in Allocated Memory Pools</figcaption>
-</div>
+<img width="100%" height="543" alt="Screenshot 2025-09-27 at 15 18 34" src="https://github.com/user-attachments/assets/931ea460-ab62-4484-b751-ffc10b5de0d5" /><br>
+
 
 ## Project Vision: What’s Next?
 - Testing using Valgrind/AddressSanitizer.
