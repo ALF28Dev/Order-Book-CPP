@@ -78,18 +78,18 @@ A fixed-size memory pool is allocated at startup for X number of slots, each rep
 
 
 >[!NOTE]
-> - **Eager Allocation:** The eager allocation of a Ring Buffer within each tick level slot of the order map removed the need to allocate `new` ingress ring buffers as we match orders and move across tick levels. As orders are ingressed at each level, we don't need to allocate any `new` Order objects, as previously stated in the section above, as we continuously reuse the allocated order objects. Allocating a Ring buffer at each tick level at process startup removes the need to create `new` and `delete` old Ring Buffers as price levels are occupied and dropped during matching.
+> - **Eager Allocation:** The eager allocation of a ring buffer within each tick-level slot of the order map eliminates the need to allocate new ingress ring buffers as orders are matched and tick levels are traversed. As orders enter at each level, no new order objects need to be allocated; instead, the preallocated order objects are continuously reused, as described in the section above. By allocating a ring buffer for each tick level at process startup, we avoid the repeated creation and deletion of ring buffers as price levels are occupied and released during matching.
 
 ### The AVL Tree - Tick Level Structure
 
-Price levels within the order book are efficiently stored within two AVL Trees allowing for quick retrieval of the best (Max) Bid and (Min) Ask. The AVL Tree structure was chosen to ensure the trees remain balance to maintain performance over time. The AVL Tree structure consists of nodes called `tick levels`. Each Tick Level holds a value and a pointer to a left and right node.
+Price levels in the order book are efficiently stored in two AVL trees, enabling quick retrieval of the best (maximum) bid and the best (minimum) ask. The AVL tree structure was chosen to ensure the trees remain balanced, thereby maintaining consistent performance over time. Each AVL tree is composed of nodes called tick levels, where each tick level holds a value and pointers to its left and right child nodes.
 
 <img width="100%" height="689" alt="Order-Book-CPP-AVL-Tree" src="https://github.com/user-attachments/assets/92a3c36c-df0f-47d8-af80-63cfb11d1a1b" /><br>
 
 <img width="100%" height="948" alt="Screenshot 2025-09-28 at 16 57 30" src="https://github.com/user-attachments/assets/8e45d3d8-5d52-44c6-810a-7ffffebe46aa" />
 
 >[!NOTE]
-> - **Eager Allocation:** As per the othr data structures within this project all of the Tick Levels are allocated into slots within a fixed size memory pool which is created at process startup. This can be seen in the diagram below showing a block of memory getting allocated, each slot filled with a generic tick level node with a value set to -1. As we add additional tick levels to the tree and the best bid/ask levels changes over time we reuse the fixed number of allocated tick level objects through the usage of a bitmap.
+> - **Eager Allocation:** As with the other data structures in this project, all tick levels are allocated into slots within a fixed-size memory pool that is created at process startup. The diagram below illustrates this: a block of memory is allocated, and each slot is initialized with a generic tick-level node whose value is set to -1. As additional tick levels are added to the tree and the best bid/ask levels change over time, we reuse the fixed set of allocated tick-level objects through the bitmap.
 > - **Memory Pool Bitmap:** The bitmap allows us to quickly identify the index of a free tick-level object that can be reused by locating the first bit set to 1 within a 64-bit integer in the list of 64-bit integers.
 
 ### The Tick Level Bitmap
@@ -108,7 +108,7 @@ The Memory Pool Bitmap structure was created to manage the memory allocated for 
 <img width="100%" height="543" alt="Screenshot 2025-09-27 at 15 18 34" src="https://github.com/user-attachments/assets/931ea460-ab62-4484-b751-ffc10b5de0d5" /><br>
 
 >[!NOTE]
-> - **Memory Pool Bitmap Capacity:** Currently the memory pool bitmap consists of a list of 10 64-bit integers providing capacity to manag 640 allocated tick levels if necessary. This can scaled up as required.
+> - **Memory Pool Bitmap Capacity:** The current memory pool bitmap consists of a list of ten 64-bit integers, providing the capacity to manage up to 640 allocated tick levels. This capacity can be scaled up as needed.
 
 ## Project Vision: What’s Next?
 - Testing using Valgrind/AddressSanitizer.
