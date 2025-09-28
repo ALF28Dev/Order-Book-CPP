@@ -1,4 +1,4 @@
-# C++ Based Order Book
+# C++ Order Book
 
 > [!IMPORTANT]
 > ### What's new in Version v2.0.0?
