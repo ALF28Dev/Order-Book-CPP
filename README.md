@@ -90,17 +90,25 @@ Price levels within the order book are efficiently stored within two AVL Trees a
 
 >[!NOTE]
 > - **Eager Allocation:** As per the othr data structures within this project all of the Tick Levels are allocated into slots within a fixed size memory pool which is created at process startup. This can be seen in the diagram below showing a block of memory getting allocated, each slot filled with a generic tick level node with a value set to -1. As we add additional tick levels to the tree and the best bid/ask levels changes over time we reuse the fixed number of allocated tick level objects through the usage of a bitmap.
-> - **Bitmap:** The bitmap enables us to quickly identify the index of a free tick level object which can be rused by finding the index of the first bit marked as 1 within a 64 bit intger inside of a list of 64 bit integers.
+> - **Memory Pool Bitmap:** The bitmap allows us to quickly identify the index of a free tick-level object that can be reused by locating the first bit set to 1 within a 64-bit integer in the list of 64-bit integers.
 
 ### The Tick Level Bitmap
 
+The tick-level bitmap was created to allow quick lookup and confirmation of whether a specific tick level exists within a bid/ask AVL tree. This eliminates the need to traverse the tree to check for the presence of a price level. I chose to use a bitmap instead of other structures, such as a hashmap, to avoid the overhead of using a hash function.
+
 <img width="100%" height="391" alt="Screenshot 2025-09-27 at 15 12 52" src="https://github.com/user-attachments/assets/23d0f982-b7b7-4a88-97c4-14436e1b7b2a" /><br>
 
+>[!NOTE]
+> - **Tick Level bitmap Capacity:** The bitmap consists of a list of 15,625 64-bit integers, which provide 1 million bits, each of which can be used to mark whether a price level exists within the bid/ask tree.
 
 ### The Memory Pool Bitmap
 
+The Memory Pool Bitmap structure was created to manage the memory allocated for the AVL tree structures within the book. By using memory pools, we can eagerly allocate all tick-level objects upfront, removing the need to repeatedly call new and delete. However, this approach requires effectively managing the allocated tick levels so they can be freed and reused later. To achieve this, I developed a bitmap system that quickly identifies the index or offset of a slot in the memory pool containing a free or unused tick-level object.
+
 <img width="100%" height="543" alt="Screenshot 2025-09-27 at 15 18 34" src="https://github.com/user-attachments/assets/931ea460-ab62-4484-b751-ffc10b5de0d5" /><br>
 
+>[!NOTE]
+> - **Memory Pool Bitmap Capacity:** Currently the memory pool bitmap consists of a list of 10 64-bit integers providing capacity to manag 640 allocated tick levels if necessary. This can scaled up as required.
 
 ## Project Vision: What’s Next?
 - Testing using Valgrind/AddressSanitizer.
